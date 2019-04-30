@@ -31,17 +31,23 @@ class FindIdentity:
         return output
 
     @staticmethod
-    def get_identifier_3(strings, column_name:str=None):
+    def get_identifier_3(strings, column_name:str=None, target_p_node:str=None):
 
         id_nodes_dict = FindIdentity.call_redis(strings)
+
         keys = set(id_nodes_dict.keys())
         result = []
         P_list = []
         for s in strings:
             if s in keys:
                 P_list.extend([P_Q.split('/')[0] for P_Q in id_nodes_dict[s]])
-        P_predicts = [x[0] for x in Counter(P_list).most_common(5)]  # [('P932', 8), ('P1566', 6), ('P698', 2)]
 
+        if target_p_node is not None:
+            P_predicts = [target_p_node]
+            print("User-defined P node is " + P_predicts[0])
+        else:
+            P_predicts = [x[0] for x in Counter(P_list).most_common(5)]  # [('P932', 8), ('P1566', 6), ('P698', 2)]
+            print("The best matching P node is " + P_predicts[0])
         """
         # use edit distance to find best candidate
         P_edit_distance = {}
@@ -54,7 +60,7 @@ class FindIdentity:
                 best = key
                 smallest_dist = val
         """
-        print("The best matching P node is " + P_predicts[0])
+
         best_predicts = [P_predicts[0]]
 
         # print('Top 3 possible properties:')

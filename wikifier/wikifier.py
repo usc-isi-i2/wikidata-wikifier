@@ -21,9 +21,9 @@ import typing
 #     def initialize():
 #         save_prop_idents()
 
-def produce(inputs, target_columns: typing.List[int]=None, input_type: str="pandas"):
+def produce(inputs, target_columns: typing.List[int]=None, target_p_node: str=None, input_type: str="pandas"):
     if input_type == "pandas":
-        return produce_for_pandas(input_df=inputs, target_columns=target_columns)
+        return produce_for_pandas(input_df=inputs, target_columns=target_columns, target_p_node=target_p_node)
     # elif input_type == "d3m_ds":
     #     return produce_for_d3m_dataset(input_ds=inputs, target_columns=target_columns)
     # elif input_type == "d3m_df":
@@ -32,11 +32,12 @@ def produce(inputs, target_columns: typing.List[int]=None, input_type: str="pand
         raise ValueError("unknown type of input!")
 
 
-def produce_for_pandas(input_df, target_columns: typing.List[int]=None):
+def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p_node: str=None):
     """
     function used to produce for input type is pandas.dataFrame
     :param input_df: input pd.dataFrame
     :param target_columns: target columns to find with wikidata
+    :param target_p_node: user-speicified P node want to get, can be None if want automatic search
     :return: a pd.dataFrame with updated columns from wikidata
     """
     # if no target columns given, just try every columns
@@ -47,7 +48,7 @@ def produce_for_pandas(input_df, target_columns: typing.List[int]=None):
     for i, column in enumerate(input_df.columns[target_columns]):
         curData = [str(x) for x in list(input_df[column])]
         # for each column, try to find corresponding possible P nodes id first
-        for idx, res in enumerate(FindIdentity.get_identifier_3(curData, input_df.columns[i])):
+        for idx, res in enumerate(FindIdentity.get_identifier_3(curData, input_df.columns[i], target_p_node)):
             # res[0] is the send input P node
             top1_dict = res[1]
             new_col = [""] * len(curData)
