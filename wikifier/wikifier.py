@@ -21,7 +21,7 @@ import typing
 #     def initialize():
 #         save_prop_idents()
 
-def produce(inputs, target_columns: typing.List[int]=None, target_p_node: str=None, input_type: str="pandas"):
+def produce(inputs, target_columns: typing.List[int]=None, target_p_node: typing.List[str]=None, input_type: str="pandas"):
     if input_type == "pandas":
         return produce_for_pandas(input_df=inputs, target_columns=target_columns, target_p_node=target_p_node)
     # elif input_type == "d3m_ds":
@@ -32,7 +32,7 @@ def produce(inputs, target_columns: typing.List[int]=None, target_p_node: str=No
         raise ValueError("unknown type of input!")
 
 
-def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p_node: str=None):
+def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p_node: typing.List[str]=None):
     """
     function used to produce for input type is pandas.dataFrame
     :param input_df: input pd.dataFrame
@@ -44,11 +44,15 @@ def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p
     if target_columns is None:
         target_columns = list(range(input_df.shape[1]))
 
-    return_df = input_df
+    return_df = input_df.copy()
     for i, column in enumerate(input_df.columns[target_columns]):
         curData = [str(x) for x in list(input_df[column])]
         # for each column, try to find corresponding possible P nodes id first
-        for idx, res in enumerate(FindIdentity.get_identifier_3(curData, input_df.columns[i], target_p_node)):
+        if target_p_node is not None:
+            target_p_node_to_send = target_p_node[i]
+        else:
+            target_p_node_to_send = None
+        for idx, res in enumerate(FindIdentity.get_identifier_3(curData, input_df.columns[i], target_p_node_to_send)):
             # res[0] is the send input P node
             top1_dict = res[1]
             new_col = [""] * len(curData)
