@@ -2,7 +2,7 @@ from collections import Counter
 import json
 import requests
 from SPARQLWrapper import SPARQLWrapper, JSON
-
+import typing
 
 class FindIdentity:
     def __init__(self):
@@ -31,13 +31,27 @@ class FindIdentity:
         return output
 
     @staticmethod
-    def get_identifier_3(strings, column_name:str=None, target_p_node:str=None):
+    def get_identifier_3(strings:typing.List[str], column_name:str=None, target_p_node:str=None):
 
         id_nodes_dict = FindIdentity.call_redis(strings)
-
-        keys = set(id_nodes_dict.keys())
+        strings_set = set(strings)
         result = []
         P_list = []
+
+        try:
+            temp = []
+            for each in strings_set:
+                temp.append(int(each))
+            min_val = min(temp)
+            max_val = max(temp)
+            if min_val<=100 and min_val>=0 and max_val>= 0 and max_val<=100:
+                print("A columns with all numerical values and useless detected, skipped")
+                return result
+        except:
+            pass
+
+        keys = set(id_nodes_dict.keys())
+
         for s in strings:
             if s in keys:
                 P_list.extend([P_Q.split('/')[0] for P_Q in id_nodes_dict[s]])
@@ -56,7 +70,7 @@ class FindIdentity:
         P_edit_distance = {}
         for each in P_predicts:
             P_edit_distance[each] = FindIdentity.min_distance(FindIdentity.get_node_name(each), column_name)
-
+get_identifier_3
         smallest_dist = 1000
         for key, val in P_edit_distance.items():
             if val < smallest_dist:
