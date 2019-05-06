@@ -131,7 +131,7 @@ def pretty_print(input_ds, ds_type=""):
     for i in range(inputs_df.shape[1]):
         selector = (res_id,ALL_ELEMENTS, i)
         meta = output_ds.metadata.query(selector)
-        if Q_NODE_SEMANTIC_TYPE in meta["semantic_types"]:
+        if "semantic_types" in meta and Q_NODE_SEMANTIC_TYPE in meta["semantic_types"]:
             can_mark_dict[each_column[i]] = make_clickable_both
             can_mark_list.append(meta["name"])
             temp = meta["name"].split("_wikidata")[0]
