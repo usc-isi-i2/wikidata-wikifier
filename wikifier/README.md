@@ -5,7 +5,7 @@
 
 ## get_identifier_nodes.py
 * Get the identifer_nodes.json file. There are about 70,000,000 key value pairs in the final output.
-* Output should be saved on REDIS to "wikify" some data.
+* Output should be saved on REDIS to "wikify" input data.
 
 ## sparql.py
 * Generate all identifiers for all property, store them in a python dictionary, then save into a file.  
