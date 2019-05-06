@@ -31,20 +31,21 @@ class FindIdentity:
         return output
 
     @staticmethod
-    def get_identifier_3(strings:typing.List[str], column_name:str=None, target_p_node:str=None):
+    def get_identifier_3(strings:typing.List[str], column_name: str=None, target_p_node: str=None):
 
         id_nodes_dict = FindIdentity.call_redis(strings)
         strings_set = set(strings)
         result = []
         P_list = []
+        appeared_threshold = 0.5
 
         try:
-            temp = []
+            temp = set()
             for each in strings_set:
-                temp.append(int(each))
+                temp.add(int(each))
             min_val = min(temp)
             max_val = max(temp)
-            if min_val<=100 and min_val>=0 and max_val>= 0 and max_val<=100:
+            if min_val<=100 and min_val>=0 and max_val>= 0 and max_val<=100:  # and len(temp) <= (max_val-min_val) * appeared_threshold:
                 print("A columns with all numerical values and useless detected, skipped")
                 return result
         except:
