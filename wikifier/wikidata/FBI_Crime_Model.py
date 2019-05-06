@@ -64,8 +64,8 @@ class FBI_Crime_Model():
     def download_data(self, year, states=None):
 
         # delete and make new folder
-        if not os.path.exists('data/' + str(year)):
-            os.makedirs('data/' + str(year))
+        if not os.path.exists('/Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/data/' + str(year)):
+            os.makedirs('/Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/data/' + str(year))
 
         # download all data or designated states
         state_list = list(self.state_abbr.keys())
@@ -89,7 +89,7 @@ class FBI_Crime_Model():
                 with requests.get(download_url, stream=True) as r:
                     if r.status_code == 200:
                         print('Downloading crime data: ' + state + '_' + str(year))
-                        with open('data/' + str(year) + '/' + local_filename, 'wb') as f:
+                        with open('/Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/data/' + str(year) + '/' + local_filename, 'wb') as f:
 
                             # save files
                             for chunk in r.iter_content():

@@ -155,9 +155,10 @@ def pretty_print(input_ds, ds_type="", display_length=10):
     return res
 
 def generate_FBI_data(states):
-    python_path = "/Users/minazuki/miniconda3/envs/etk/bin/python"
+    python_path = "/Users/pszekely/anaconda/envs/etk/bin/python"
+    # python_path = "/Users/minazuki/miniconda3/envs/etk/bin/python"
     for each_state in states:
-        command_generate = python_path + " /Users/minazuki/Desktop/studies/master/2018Summer/DSBOX_2019/wikidata-wikifier/wikifier/wikidata/FBI_Crime_Model.py " + each_state
+        command_generate = python_path + " /Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/FBI_Crime_Model.py " + each_state
 
         command_add = python_path + " -m etk wd_upload -e http://sitaware.isi.edu:8080/admin/bigdata/namespace/wdq/sparql --user admin --passwd uscisii2 -f " + each_state + ".ttl"
 
@@ -168,6 +169,7 @@ def generate_FBI_data(states):
         subprocess.call(command_update_truthy, stdout=subprocess.PIPE, shell=True)
 
 def clean_FBI_data():
-    python_path = "/Users/minazuki/miniconda3/envs/etk/bin/python"
+    python_path = "/Users/pszekely/anaconda/envs/etk/bin/python"
+    # python_path = "/Users/minazuki/miniconda3/envs/etk/bin/python"
     command_clean = python_path + " -m etk wd_cleanup -e http://sitaware.isi.edu:8080/admin/bigdata/namespace/wdq/sparql --user admin --passwd uscisii2"
     subprocess.call(command_clean, stdout=subprocess.PIPE, shell=True)
