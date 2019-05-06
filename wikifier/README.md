@@ -5,9 +5,9 @@
 
 ## get_identifier_nodes.py
 * Get the identifer_nodes.json file. There are about 70,000,000 key value pairs in the final output.
-* Output should be saved on REDIS to "wikify" input data.
+* Output should be saved on REDIS to "wikify" input data. Need to contact Aditya to update redis.
 * how to use:
-* python get_identifier_nodes.py, then it will write a "identifier_nodes.json" file in your current folder.
+* python get_identifier_nodes.py, then it will write a "identifier_nodes.json" file in your current folder. 
 
 ## sparql.py
 * Generate all identifiers for all property, store them in a python dictionary, then save into a file.  
@@ -43,6 +43,8 @@ read and write JSON files.
 ## IdentifierWikifier.ipynb
 Wikifier input csv file, output csv file.
 
+## sparqls.sql
+Some use sparql for wikidata, it is also what we use in sparql.py and get_identifier_nodes.py
 ## minHash.py
 Build a list for all MinHash objects. Give a file, it will return the top 5 silimiar items and their similarity scores.
 
