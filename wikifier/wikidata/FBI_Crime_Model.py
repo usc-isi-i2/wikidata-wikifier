@@ -12,6 +12,10 @@ from etk.wikidata import serialize_change_record
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 
+# DATA_ABS_ADDRESS = "/Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/data/"
+# DATA_ABS_ADDRESS = "/Users/minazuki/Desktop/studies/master/2018Summer/DSBOX_2019/wikidata-wikifier/wikifier/wikidata/data/"
+DATA_ABS_ADDRESS = "data/"
+
 class FBI_Crime_Model():
     def __init__(self):
 
@@ -64,8 +68,8 @@ class FBI_Crime_Model():
     def download_data(self, year, states=None):
 
         # delete and make new folder
-        if not os.path.exists('/Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/data/' + str(year)):
-            os.makedirs('/Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/data/' + str(year))
+        if not os.path.exists(DATA_ABS_ADDRESS + str(year)):
+            os.makedirs(DATA_ABS_ADDRESS + str(year))
 
         # download all data or designated states
         state_list = list(self.state_abbr.keys())
@@ -89,7 +93,7 @@ class FBI_Crime_Model():
                 with requests.get(download_url, stream=True) as r:
                     if r.status_code == 200:
                         print('Downloading crime data: ' + state + '_' + str(year))
-                        with open('/Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/data/' + str(year) + '/' + local_filename, 'wb') as f:
+                        with open(DATA_ABS_ADDRESS + str(year) + '/' + local_filename, 'wb') as f:
 
                             # save files
                             for chunk in r.iter_content():
@@ -115,7 +119,7 @@ class FBI_Crime_Model():
         for state in state_list:
 
             # read file
-            file_path = 'data/' + str(year) + '/' + state + '.xls'
+            file_path = DATA_ABS_ADDRESS + str(year) + '/' + state + '.xls'
             if not os.path.isfile(file_path):
                 # print('Crime data for ' + state + '_' + str(year) + ' does not exist. Please download it first!')
                 continue
@@ -423,21 +427,23 @@ class FBI_Crime_Model():
         return 'Q504385'
 
 def generate_fbi_data(states):
-    model = FBI_Crime_Model()
-
-    # run once to get QNodes dictionary
-    model.query_QNodes()
-
-    # run when you want to download new dataset
-    # model.download_data(2016)
     for each_state in states:
         res = model.extract_data(2016, [each_state])
         model.model_data(res, each_state + '.ttl')
         with open('changes_' + each_state + '.tsv', 'w') as fp:
             serialize_change_record(fp)
 
-
 if __name__ == "__main__":
-    state = sys.argv[1]
-    generate_fbi_data([state])
+    import warnings
+    warnings.filterwarnings("ignore")
+    choice = sys.argv[1]
+    state = sys.argv[2]
+    model = FBI_Crime_Model()
+    # run once to get QNodes dictionary
+    model.query_QNodes()
+
+    if choice == "download":
+        model.download_data(2016, [state])
+    elif choice == "generate":
+        generate_fbi_data([state])
 

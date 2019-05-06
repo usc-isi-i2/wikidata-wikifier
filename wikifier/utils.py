@@ -154,22 +154,43 @@ def pretty_print(input_ds, ds_type="", display_length=10):
         res = res.applymap(highlight_cols1, subset=pd.IndexSlice[:, afterwards_columns])
     return res
 
-def generate_FBI_data(states):
-    python_path = "/Users/pszekely/anaconda/envs/etk/bin/python"
-    # python_path = "/Users/minazuki/miniconda3/envs/etk/bin/python"
+def download_FBI_data(states, python_path="/Users/pszekely/anaconda/envs/etk/bin/python", pypath="/Users/pszekely/Downloads/datamart_demo/"):
     for each_state in states:
-        command_generate = python_path + " /Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/FBI_Crime_Model.py " + each_state
+        command_download = python_path + " " + pypath +"wikidata-wikifier/wikifier/wikidata/FBI_Crime_Model.py download " + each_state
+        p = subprocess.Popen(command_download, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+        while p.poll() == None:
+            out = p.stdout.readline().strip()
+            if out:
+                print (bytes.decode(out))
 
+def generate_FBI_data(states, python_path="/Users/pszekely/anaconda/envs/etk/bin/python", pypath="/Users/pszekely/Downloads/datamart_demo/"):
+    for each_state in states:
+        command_generate = python_path + " " + pypath +"wikidata-wikifier/wikifier/wikidata/FBI_Crime_Model.py generate " + each_state
+        p = subprocess.Popen(command_generate, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+        while p.poll() == None:
+            out = p.stdout.readline().strip()
+            if out:
+                print (bytes.decode(out))
+
+def upload_FBI_data(states, python_path="/Users/pszekely/anaconda/envs/etk/bin/python"):
+    for each_state in states:
         command_add = python_path + " -m etk wd_upload -e http://sitaware.isi.edu:8080/admin/bigdata/namespace/wdq/sparql --user admin --passwd uscisii2 -f " + each_state + ".ttl"
-
         command_update_truthy = python_path + " -m etk wd_update_truthy -e http://sitaware.isi.edu:8080/admin/bigdata/namespace/wdq/sparql --user admin --passwd uscisii2 -f changes_" + each_state + ".tsv"
+        
+        p = subprocess.Popen(command_add, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+        while p.poll() == None:
+            out = p.stdout.readline().strip()
+            if out:
+                print (bytes.decode(out))
 
-        subprocess.call(command_generate, stdout=subprocess.PIPE, shell=True)
-        subprocess.call(command_add, stdout=subprocess.PIPE, shell=True)
-        subprocess.call(command_update_truthy, stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen(command_update_truthy, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+        while p.poll() == None:
+            out = p.stdout.readline().strip()
+            if out:
+                print (bytes.decode(out))
 
-def clean_FBI_data():
-    python_path = "/Users/pszekely/anaconda/envs/etk/bin/python"
+def clean_FBI_data(python_path="/Users/pszekely/anaconda/envs/etk/bin/python"):
     # python_path = "/Users/minazuki/miniconda3/envs/etk/bin/python"
     command_clean = python_path + " -m etk wd_cleanup -e http://sitaware.isi.edu:8080/admin/bigdata/namespace/wdq/sparql --user admin --passwd uscisii2"
-    subprocess.call(command_clean, stdout=subprocess.PIPE, shell=True)
+    subprocess.call(command_clean, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+
