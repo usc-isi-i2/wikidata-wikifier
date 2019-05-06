@@ -1,7 +1,7 @@
 from SPARQLWrapper import SPARQLWrapper, JSON,XML
 import re,json
 
-#
+#get all identifiers, i.e.[P1,P2,P3, ...]
 def get_identifiers():
 	global P_nodes
 	#sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
@@ -17,17 +17,19 @@ def get_identifiers():
 	for r in res:
 		try:
 			P_node = re.search(r'[A-Za-z][0-9]+',r["p"]["value"]).group()
+			#update global varibale P_nodes
 			P_nodes.append(P_node)
 		except:
 			print('get_identifiers Error()', r)
 
+#get properties for a given P_node, return {'01101':'Q1234567'}
 def get_properties(P_ID):
 	cur_json = {}
 	#sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
 	sparql = SPARQLWrapper("http://sitaware.isi.edu:8080/bigdata/namespace/wdq/sparql")
 	#sparql.setTimeout(1000)
 	sparql.setQuery("""
-	    SELECT ?x ?v WHERE { ?x wdt:""" + P_ID + """ ?v. }
+		SELECT ?x ?v WHERE { ?x wdt:""" + P_ID + """ ?v. }
 	""")
 	sparql.setReturnFormat(JSON)
 	try:
@@ -46,8 +48,7 @@ def get_properties(P_ID):
 		print('get_properties() Error:',P_ID)
 	return cur_json
 
-
-
+#do traversal on prop_idents dict, build identifier_nodes_dict, i.e. {'1101': [P882/Q123456,PP881/Q123]}
 def convert_dict(prop_idents):
     identifier_nodes_dict = {}
     count = 0
@@ -74,6 +75,7 @@ if __name__ == "__main__":
 
 	identifier_nodes = convert_dict(prop_idents)
 	js = json.dumps(identifier_nodes)
+	# could be changed to any file path
 	f = open("identifier_nodes.json","w+")
 	f.write(js)
 	f.close()
