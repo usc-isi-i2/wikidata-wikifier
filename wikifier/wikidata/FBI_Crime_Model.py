@@ -1,6 +1,5 @@
 import requests
 import os, json
-import sys
 from etk.etk import ETK
 from etk.extractors.excel_extractor import ExcelExtractor
 from etk.knowledge_graph import KGSchema, URI, Literal, LiteralType, Subject, Reification
@@ -10,7 +9,6 @@ from etk.wikidata.value import Datatype, Item, TimeValue, Precision, QuantityVal
 from etk.wikidata.statement import WDReference
 from etk.wikidata import serialize_change_record
 from SPARQLWrapper import SPARQLWrapper, JSON
-
 
 # DATA_ABS_ADDRESS = "/Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/data/"
 # DATA_ABS_ADDRESS = "/Users/minazuki/Desktop/studies/master/2018Summer/DSBOX_2019/wikidata-wikifier/wikifier/wikidata/data/"
@@ -51,11 +49,9 @@ class FBI_Crime_Model():
     def add_value(self, item, key, value, unit, year_value, reference):
 
         # manually define kv pairs dict
-        kv_dict = {'Violent_crime': 'C3001', 'Murder_and_nonnegligent_manslaughter': 'C3002',
-                   'Rape_(revised_definition)1': 'C3003', 'Rape_(revised_definition)': 'C3003',
-                   'Rape_(legacy_definition)2': 'C3004', 'Rape_(legacy_definition)': 'C3004', 'Robbery': 'C3005',
-                   'Aggravated_assault': 'C3006', 'Property_crime': 'C3007', 'Burglary': 'C3008',
-                   'Larceny-_theft': 'C3009', 'Motor_vehicle_theft': 'C3010', 'Arson3': 'C3011', 'Arson': 'C3011'}
+        kv_dict = {'violent': 'C3001', 'murder': 'C3002','rape': 'C3003','robbery': 'C3005',
+                   'aggravated': 'C3006', 'property': 'C3007', 'burglary': 'C3008',
+                   'larceny-': 'C3009', 'motor': 'C3010', 'arson': 'C3011'}
 
         if key not in kv_dict:
             raise Exception(key + ' is not implemented')
@@ -93,7 +89,7 @@ class FBI_Crime_Model():
                 with requests.get(download_url, stream=True) as r:
                     if r.status_code == 200:
                         print('Downloading crime data: ' + state + '_' + str(year))
-                        with open(DATA_ABS_ADDRESS + str(year) + '/' + local_filename, 'wb') as f:
+                        with open('data/' + str(year) + '/' + local_filename, 'wb') as f:
 
                             # save files
                             for chunk in r.iter_content():
@@ -138,15 +134,36 @@ class FBI_Crime_Model():
                 county_data = dict()
                 for e in extractions:
                     if len(e['county']) > 0:
+                        name = e['county'].replace(' ', '').lower()
+                        if name[-1].isdigit():
+                            name = name[:-1]
+                        if 'policedepartment' in name:
+                            name = name[:-16]
+                        if 'county' in name:
+                            name = name[:-6]
+                        if '/' in name:
+                            name = name.split('/')[1]
+                        if '-' in name:
+                            name = name.split('-')[1]
+                        if 'publicsafety' in name:
+                            name = name[:-12]
+                        if 'unified' in name:
+                            name = name[:-7]
 
                         # build county dictionary
-                        if e['county'] not in county_data:
-                            county_data[e['county']] = dict()
+                        if name not in county_data:
+
+                            county_data[name] = dict()
 
                         # add extracted data
                         if e['value'] is not '' and isinstance(e['value'], int):
-                            e['category'] = e['category'].replace('\n', '_').replace(' ', '_')
-                            county_data[e['county']][e['category']] = e['value']
+                            ctg = e['category'].replace('\n', ' ').split(' ')[0].lower()
+                            if ctg[-1].isdigit():
+                                ctg = ctg[:-1]
+                            if ctg in county_data[name]:
+                                county_data[name][ctg] += e['value']
+                            else:
+                                county_data[name][ctg] = e['value']
                 res[state + '_' + str(year)] = county_data
         print('\n\nExtraction completed!')
         return res
@@ -338,7 +355,6 @@ class FBI_Crime_Model():
         f.write(doc.kg.serialize(format))
         print('Serialization completed!')
 
-
     def query_QNodes(self):
 
         # query QNode for each county
@@ -389,19 +405,6 @@ class FBI_Crime_Model():
             f.close()
         name = county.lower().replace(' ', '')
 
-        # corner cases
-        if name[-1].isdigit():
-            name = name[:-1]
-        if 'policedepartment' in name:
-            name = name[:-16]
-        if '/' in name:
-            name = name.split('/')[1]
-        if '-' in name:
-            name = name.split('-')[1]
-        if 'publicsafety' in name:
-            name = name[:-12]
-        if 'unified' in name:
-            name = name[:-7]
         temp_state = state.lower().replace(' ', '-')
         # map state to its abbreviate
         if temp_state in self.state_abbr:
@@ -409,8 +412,8 @@ class FBI_Crime_Model():
 
             # find Qnode
 
-            county1 = name + 'county_' + abbr
-            county2 = name + '_' + abbr
+            county1 = county + 'county_' + abbr
+            county2 = county + '_' + abbr
             # print(county1, county2)
             if county1 in self.county_QNode:
                 return self.county_QNode[county1]
@@ -432,7 +435,7 @@ def generate_fbi_data(states):
         model.model_data(res, each_state + '.ttl')
         with open('changes_' + each_state + '.tsv', 'w') as fp:
             serialize_change_record(fp)
-
+            
 if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore")
@@ -441,7 +444,7 @@ if __name__ == "__main__":
     model = FBI_Crime_Model()
     # run once to get QNodes dictionary
     model.query_QNodes()
-
+    
     if choice == "download":
         model.download_data(2016, [state])
     elif choice == "generate":
