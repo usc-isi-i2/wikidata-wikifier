@@ -17,6 +17,8 @@ logger.setLevel(level)
 Q_NODE_SEMANTIC_TYPE = "http://wikidata.org/qnode"
 WIKIDATA_URL = "https://tools.wmflabs.org/sqid/#/view?id="
 COLOR_BANK = ['#FFB567', '#36DBFF', '#C1FE9B', '#B89E9E', '#F3FF6D']
+ALL_STATES = set(['alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado', 'connecticut', 'delaware', 'florida', 'georgia', 'hawaii', 'idaho', 'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana', 'maine', 'maryland', 'massachusetts', 'michigan', 'minnesota', 'mississippi', 'missouri', 'montana', 'nebraska', 'nevada', 'new-hampshire', 'new-jersey', 'new-mexico', 'new-york', 'north-carolina', 'north-dakota', 'ohio', 'oklahoma', 'oregon', 'pennsylvania', 'rhode-island', 'south-carolina', 'south-dakota', 'tennessee', 'texas', 'utah', 'vermont', 'virginia', 'washington', 'west-virginia', 'wisconsin', 'wyoming'])
+
 
 class Count:
     count = 0
@@ -154,22 +156,52 @@ def pretty_print(input_ds, ds_type="", display_length=10):
         res = res.applymap(highlight_cols1, subset=pd.IndexSlice[:, afterwards_columns])
     return res
 
-def generate_FBI_data(states):
-    python_path = "/Users/pszekely/anaconda/envs/etk/bin/python"
-    # python_path = "/Users/minazuki/miniconda3/envs/etk/bin/python"
+def download_FBI_data(states=None, python_path="/Users/pszekely/anaconda/envs/etk/bin/python", pypath="/Users/pszekely/Downloads/datamart_demo/"):
+    if states is None:
+        states = ALL_STATES
     for each_state in states:
-        command_generate = python_path + " /Users/pszekely/Downloads/datamart_demo/wikidata-wikifier/wikifier/wikidata/FBI_Crime_Model.py " + each_state
+        each_state = each_state.lower()
+        command_download = python_path + " " + pypath +"wikidata-wikifier/wikifier/wikidata/FBI_Crime_Model.py download " + each_state
+        p = subprocess.Popen(command_download, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+        while p.poll() == None:
+            out = p.stdout.readline().strip()
+            if out:
+                print (bytes.decode(out))
 
+def generate_FBI_data(states=None, python_path="/Users/pszekely/anaconda/envs/etk/bin/python", pypath="/Users/pszekely/Downloads/datamart_demo/"):
+    if states is None:
+        states = ALL_STATES
+    for each_state in states:
+        each_state = each_state.lower()
+        command_generate = python_path + " " + pypath +"wikidata-wikifier/wikifier/wikidata/FBI_Crime_Model.py generate " + each_state
+        p = subprocess.Popen(command_generate, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+        while p.poll() == None:
+            out = p.stdout.readline().strip()
+            if out:
+                print (bytes.decode(out))
+
+def upload_FBI_data(states=None, python_path="/Users/pszekely/anaconda/envs/etk/bin/python"):
+    if states is None:
+        states = ALL_STATES
+    for each_state in states:
+        each_state = each_state.lower()
         command_add = python_path + " -m etk wd_upload -e http://sitaware.isi.edu:8080/admin/bigdata/namespace/wdq/sparql --user admin --passwd uscisii2 -f " + each_state + ".ttl"
-
         command_update_truthy = python_path + " -m etk wd_update_truthy -e http://sitaware.isi.edu:8080/admin/bigdata/namespace/wdq/sparql --user admin --passwd uscisii2 -f changes_" + each_state + ".tsv"
+        
+        p = subprocess.Popen(command_add, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+        while p.poll() == None:
+            out = p.stdout.readline().strip()
+            if out:
+                print (bytes.decode(out))
 
-        subprocess.call(command_generate, stdout=subprocess.PIPE, shell=True)
-        subprocess.call(command_add, stdout=subprocess.PIPE, shell=True)
-        subprocess.call(command_update_truthy, stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen(command_update_truthy, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+        while p.poll() == None:
+            out = p.stdout.readline().strip()
+            if out:
+                print (bytes.decode(out))
 
-def clean_FBI_data():
-    python_path = "/Users/pszekely/anaconda/envs/etk/bin/python"
+def clean_FBI_data(python_path="/Users/pszekely/anaconda/envs/etk/bin/python"):
     # python_path = "/Users/minazuki/miniconda3/envs/etk/bin/python"
     command_clean = python_path + " -m etk wd_cleanup -e http://sitaware.isi.edu:8080/admin/bigdata/namespace/wdq/sparql --user admin --passwd uscisii2"
-    subprocess.call(command_clean, stdout=subprocess.PIPE, shell=True)
+    subprocess.call(command_clean, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+
