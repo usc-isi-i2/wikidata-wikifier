@@ -2,8 +2,8 @@
 # from .sparql import DEFAULT_SAVE_LOCATION, save_prop_idents
 from .find_identity import FindIdentity
 import typing
-# import numpy as np
-
+import numpy as np
+from collections import Counter
 
 # class Wikifier:
 #     def __init__(self, base_file_loc:str=None):
@@ -46,7 +46,13 @@ def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p
 
     return_df = input_df.copy()
     for i, column in enumerate(input_df.columns[target_columns]):
-        curData = [str(x) for x in list(input_df[column])]
+        #curData = [str(x) for x in list(input_df[column])]
+        print('Current column: '+ column)
+        curData = [str(x) if x is not np.nan else '' for x in list(input_df[column])]
+        threshold = 0.3
+        if coverage(curData) < threshold:
+            print(coverage(curData))
+            continue
         # for each column, try to find corresponding possible P nodes id first
         if target_p_node is not None:
             target_p_node_to_send = target_p_node[i]
@@ -59,10 +65,15 @@ def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p
             for i in range(len(curData)):
                 if curData[i] in top1_dict:
                     new_col[i] = top1_dict[curData[i]]
+            if coverage(new_col) < threshold:
+                continue
             col_name = column + '_wikidata'
             return_df[col_name] = new_col
             break
+
     return return_df
 
 
-
+def coverage(column):
+    count_stats = Counter(column)
+    return (len(column)-count_stats[''])/len(column)
