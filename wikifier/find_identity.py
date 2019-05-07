@@ -27,7 +27,7 @@ class FindIdentity:
                     if P_Q_splited[0] == P_predict:
                         output[s] = P_Q_splited[1]
             else:
-                output[s] = 'N/A'
+                output[s] = ''
         return output
 
     @staticmethod
@@ -86,7 +86,7 @@ get_identifier_3
         for P_predict in best_predicts:
             output = {}  # key string, value:Q123
             for s in strings:
-                output[s] = 'N/A'
+                output[s] = ''
                 if s in keys:
                     for P_Q in id_nodes_dict[s]:  # for P_Q in P_Qlist
                         P_Q_splited = P_Q.split('/')
