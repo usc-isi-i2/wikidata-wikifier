@@ -40,18 +40,18 @@ def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p
     :param target_p_node: user-speicified P node want to get, can be None if want automatic search
     :return: a pd.dataFrame with updated columns from wikidata
     """
-    # if no target columns given, just try every columns
+    # if no target columns given, just try every str columns
     if target_columns is None:
         target_columns = list(range(input_df.shape[1]))
 
     return_df = input_df.copy()
     for i, column in enumerate(input_df.columns[target_columns]):
         #curData = [str(x) for x in list(input_df[column])]
-        print('Current column: '+ column)
+        print('Current column: ' + column)
         curData = [str(x) if x is not np.nan else '' for x in list(input_df[column])]
-        threshold = 0.3
+        threshold = 0.9
         if coverage(curData) < threshold:
-            print(coverage(curData))
+            print("[WARNING] Coverage is " + str(coverage(curData)) + " which is less than threshold " + str(threshold))
             continue
         # for each column, try to find corresponding possible P nodes id first
         if target_p_node is not None:
