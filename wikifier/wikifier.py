@@ -4,7 +4,7 @@ from .find_identity import FindIdentity
 import typing
 import numpy as np
 from collections import Counter
-
+import copy
 # class Wikifier:
 #     def __init__(self, base_file_loc:str=None):
 #         if base_file_loc:
@@ -44,21 +44,24 @@ def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p
     if target_columns is None:
         target_columns = list(range(input_df.shape[1]))
 
-    return_df = input_df.copy()
-    for i, column in enumerate(input_df.columns[target_columns]):
-        #curData = [str(x) for x in list(input_df[column])]
-        print('Current column: ' + column)
-        curData = [str(x) if x is not np.nan else '' for x in list(input_df[column])]
-        threshold = 0.9
+    return_df = copy.deepcopy(input_df)
+
+    for column in target_columns:
+        current_column_name = input_df.columns[column]
+        # curData = [str(x) for x in list(input_df[column])]
+        print('Current column: ' + current_column_name)
+        curData = [str(x) if x is not np.nan else '' for x in list(input_df.iloc[:, column])]
+        threshold = 0.7
         if coverage(curData) < threshold:
-            print("[WARNING] Coverage is " + str(coverage(curData)) + " which is less than threshold " + str(threshold))
+            print("[WARNING] Coverage of data is " + str(coverage(curData)) + " which is less than threshold " + str(threshold))
             continue
         # for each column, try to find corresponding possible P nodes id first
         if target_p_node is not None:
-            target_p_node_to_send = target_p_node[i]
+            target_p_node_to_send = target_p_node[column]
         else:
             target_p_node_to_send = None
-        for idx, res in enumerate(FindIdentity.get_identifier_3(curData, input_df.columns[i], target_p_node_to_send)):
+        for idx, res in enumerate(FindIdentity.get_identifier_3(strings=curData, column_name=current_column_name,
+                                                                target_p_node=target_p_node_to_send)):
             # res[0] is the send input P node
             top1_dict = res[1]
             new_col = [""] * len(curData)
@@ -66,11 +69,12 @@ def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p
                 if curData[i] in top1_dict:
                     new_col[i] = top1_dict[curData[i]]
             if coverage(new_col) < threshold:
+                print(
+                    "[WARNING] Coverage of Q nodes is " + str(coverage(new_col)) + " which is less than threshold " + str(threshold))
                 continue
-            col_name = column + '_wikidata'
+            col_name = current_column_name + '_wikidata'
             return_df[col_name] = new_col
             break
-
     return return_df
 
 

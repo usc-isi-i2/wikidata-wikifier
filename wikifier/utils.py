@@ -194,9 +194,9 @@ def upload_FBI_data(states=None, mode=""):
         states = ALL_STATES
 
     if mode == "test":
-        endpoint = config.endpoint_test
+        endpoint = config.endpoint_upload_test
     else:
-        endpoint = config.endpoint_main
+        endpoint = config.endpoint_upload_main
 
     for each_state in states:
         each_state = each_state.lower()
@@ -217,9 +217,9 @@ def upload_FBI_data(states=None, mode=""):
 
 def clean_FBI_data(mode=""):
     if mode == "test":
-        endpoint = config.endpoint_test
+        endpoint = config.endpoint_upload_test
     else:
-        endpoint = config.endpoint_main
+        endpoint = config.endpoint_upload_main
     command_clean = python_path + config_clean_up + endpoint
     subprocess.call(command_clean, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
 
