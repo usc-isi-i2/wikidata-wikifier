@@ -34,28 +34,18 @@ class FindIdentity:
     def get_identifier_3(strings:typing.List[str], column_name: str=None, target_p_node: str=None):
 
         id_nodes_dict = FindIdentity.call_redis(strings)
-        strings_set = set(strings)
         result = []
         P_list = []
         appeared_threshold = 0.5
-
-        try:
-            temp = set()
-            for each in strings_set:
-                temp.add(int(each))
-            min_val = min(temp)
-            max_val = max(temp)
-            if min_val<=100 and min_val>=0 and max_val>= 0 and max_val<=100:  # and len(temp) <= (max_val-min_val) * appeared_threshold:
-                print("A columns with all numerical values and useless detected, skipped")
-                return result
-        except:
-            pass
 
         keys = set(id_nodes_dict.keys())
 
         for s in strings:
             if s in keys:
-                P_list.extend([P_Q.split('/')[0] for P_Q in id_nodes_dict[s]])
+                # update 2019.5.31: it seems sometimes duplicate relationship will appeared!
+                temp = [P_Q.split('/')[0] for P_Q in set(id_nodes_dict[s])]
+                temp1 = list(set(temp))
+                P_list.extend(temp1)
 
         if target_p_node is not None:
             P_predicts = [target_p_node]
@@ -66,23 +56,27 @@ class FindIdentity:
                 print("[ERROR] No candidate P nodes found for input column : [" + column_name + "]")
                 return result
             print("The best matching P node is " + P_predicts[0])
+
         """
         # use edit distance to find best candidate
         P_edit_distance = {}
         for each in P_predicts:
             P_edit_distance[each] = FindIdentity.min_distance(FindIdentity.get_node_name(each), column_name)
-get_identifier_3
         smallest_dist = 1000
         for key, val in P_edit_distance.items():
             if val < smallest_dist:
                 best = key
                 smallest_dist = val
-        """
 
+        import pdb
+        pdb.set_trace()
+        # best_predicts =
+        """
         best_predicts = [P_predicts[0]]
 
         # print('Top 3 possible properties:')
         # print(P_predicts)
+
         for P_predict in best_predicts:
             output = {}  # key string, value:Q123
             for s in strings:

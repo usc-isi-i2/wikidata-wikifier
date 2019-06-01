@@ -50,6 +50,18 @@ def produce_for_pandas(input_df, target_columns: typing.List[int]=None, target_p
         current_column_name = input_df.columns[column]
         # curData = [str(x) for x in list(input_df[column])]
         print('Current column: ' + current_column_name)
+        try:
+            temp = set()
+            for each in input_df[current_column_name].dropna().tolist():
+                temp.add(int(each))
+            min_val = min(temp)
+            max_val = max(temp)
+            if min_val<=100 and min_val>=0 and max_val>= 0 and max_val<=100:  # and len(temp) <= (max_val-min_val) * appeared_threshold:
+                print("A columns with all numerical values and useless detected, skipped")
+                continue
+        except:
+            pass
+
         curData = [str(x) if x is not np.nan else '' for x in list(input_df.iloc[:, column])]
         threshold = 0.7
         if coverage(curData) < threshold:
