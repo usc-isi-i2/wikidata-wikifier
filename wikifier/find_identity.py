@@ -4,6 +4,9 @@ import requests
 from SPARQLWrapper import SPARQLWrapper, JSON
 import typing
 
+
+P_blacklist = ["P5736", "P3984"]
+
 class FindIdentity:
     def __init__(self):
         pass
@@ -52,6 +55,12 @@ class FindIdentity:
             print("User-defined P node is " + P_predicts[0])
         else:
             P_predicts = [x[0] for x in Counter(P_list).most_common(5)]  # [('P932', 8), ('P1566', 6), ('P698', 2)]
+
+            for each in P_blacklist:
+                try:
+                    P_predicts.remove(each)
+                except:
+                    pass
             if len(P_predicts) == 0:
                 print("[ERROR] No candidate P nodes found for input column : [" + column_name + "]")
                 return result
