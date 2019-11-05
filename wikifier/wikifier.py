@@ -7,6 +7,7 @@ import string
 from SPARQLWrapper import SPARQLWrapper, JSON
 from get_dburis_from_qnodes import DBURIsFromQnodes
 from get_qnodes_from_dburis import QNodesFromDBURIs
+from add_levenshtein_similarity_feature import AddLevenshteinSimilarity
 
 
 class Wikifier(object):
@@ -27,6 +28,11 @@ class Wikifier(object):
         self.names_es_doc = config['names_es_doc']
         self.names_es_search_url = '{}/{}/{}/_search'.format(self.es_url, self.names_es_index, self.names_es_doc)
 
+        self.wiki_labels_index = config['wiki_labels_index']
+        self.wiki_labels_doc = config['wiki_labels_doc']
+        self.wiki_labels_search_url = '{}/{}/{}/_search'.format(self.es_url, self.wiki_labels_index,
+                                                                self.wiki_labels_doc)
+
         self.query_1 = json.load(open('./queries/wiki_query_1.json'))
         self.query_2 = json.load(open('./queries/wiki_query_2.json'))
         self.query_more_like_this = json.load(open('./queries/wiki_query_more_like_this.json'))
@@ -37,6 +43,8 @@ class Wikifier(object):
         self.dburi_qnode_map = json.load(open('./wikifier/caches/dburi_to_qnode_map.json'))
         self.sparql = SPARQLWrapper(config['wd_endpoint'])
         self.sparqldb = SPARQLWrapper(config['db_endpoint'])
+        self.qnode_to_labels_dict = {}
+        self.dburi_to_labels_dict = {}
 
     @staticmethod
     def clean_labels(label):
@@ -227,6 +235,8 @@ class Wikifier(object):
             results = ['{}:{}:{}'.format(query_id, self.format_dbpedia_labels_index_results(x),
                                          self.aqs[query_id]['lambda'] * (
                                                  float(x['_score']) / self.aqs[query_id]['avg'])) for x in hits]
+            for hit in hits:
+                self.dburi_to_labels_dict[hit['_id']] = hit['_source']
             return results if len(results) > 0 else None
         return None
 
@@ -299,7 +309,7 @@ class Wikifier(object):
                                     qnode_set.add(_[1])
                         except:
                             print(c_tuple)
-        return list(qnode_set)
+        return qnode_set
 
     def get_db_uris(self, df):
         dburis = set()
@@ -318,7 +328,7 @@ class Wikifier(object):
                             if _group_id in self.db_connected_comps:
                                 dburis.update(self.db_connected_comps[_group_id])
 
-        return list(dburis)
+        return dburis
 
     def update_qnode_dburi_caches(self, db_from_q, q_from_db):
         for k, v in db_from_q.qnode_dburi_map.items():
@@ -331,6 +341,25 @@ class Wikifier(object):
 
         db_from_q.write_qnode_dburi_map_to_disk()
         q_from_db.write_dburi_qnode_map_to_disk()
+
+    def create_qnode_to_labels_dict(self, qnodes):
+        while (len(qnodes) > 0):
+            batch = qnodes[:100]
+            qnodes = qnodes[100:]
+            query = {
+                "query": {
+                    "ids": {
+                        "values": batch
+                    }
+                },
+                "size": len(batch)
+            }
+
+            response = requests.post(self.wiki_labels_search_url, json=query)
+            if response.status_code == 200:
+                es_docs = response.json()['hits']['hits']
+                for es_doc in es_docs:
+                    self.qnode_to_labels_dict[es_doc['_id']] = es_doc['_source']
 
     def wikify(self, df, column=None):
         if column is None:
@@ -349,7 +378,18 @@ class Wikifier(object):
         all_dburis = self.get_db_uris(df)
         db_from_q = DBURIsFromQnodes()
         q_from_db = QNodesFromDBURIs()
-        q_from_db.get_dburis_from_qnodes(all_qnodes)
-        db_from_q.uris_to_qnodes(all_dburis)
+        q_from_db.get_dburis_from_qnodes(list(all_qnodes))
+        db_from_q.uris_to_qnodes(list(all_dburis))
+
+        for _dburi in list(all_dburis):
+            if _dburi in q_from_db.dburi_qnode_map:
+                _qnode = q_from_db.dburi_qnode_map[_dburi]
+                if _qnode is not None:
+                    all_qnodes.add(_qnode)
+
+        self.create_qnode_to_labels_dict(list(all_qnodes))
+
+        lev_similarity = AddLevenshteinSimilarity()
+        df = lev_similarity.add_lev_feature(df, self.qnode_to_labels_dict, self.dburi_to_labels_dict)
 
         self.update_qnode_dburi_caches(db_from_q, q_from_db)

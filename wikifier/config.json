@@ -1,0 +1,12 @@
+{
+  "es_url": "http://kg2018a.isi.edu:9200",
+  "es_index": "my_wiki_content_first",
+  "es_doc": "page",
+  "dbpedia_labels_index": "my_wiki_general_first",
+  "names_es_index": "wikidata_names_1",
+  "names_es_doc": "docs",
+  "wiki_labels_index": "wikidata_labels_dict_1",
+  "wiki_labels_doc": "docs",
+  "db_endpoint": "http://dbpedia.org/sparql",
+  "wd_endpoint": "http://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql"
+}
