@@ -4,6 +4,9 @@ import re
 import requests
 import json
 import string
+from SPARQLWrapper import SPARQLWrapper, JSON
+from get_dburis_from_qnodes import DBURIsFromQnodes
+from get_qnodes_from_dburis import QNodesFromDBURIs
 
 
 class Wikifier(object):
@@ -29,6 +32,11 @@ class Wikifier(object):
         self.query_more_like_this = json.load(open('./queries/wiki_query_more_like_this.json'))
         self.query_dbpedia_labels = json.load(open('./queries/wiki_query_dbpedia_labels.json'))
         self.seen_labels = dict()
+        self.db_connected_comps = json.load(open('./caches/dbpedia_redirect_connected_components.json'))
+        self.qnode_dburi_map = json.load(open('./wikifier/caches/qnode_to_dburi_map.json'))
+        self.dburi_qnode_map = json.load(open('./wikifier/caches/dburi_to_qnode_map.json'))
+        self.sparql = SPARQLWrapper(config['wd_endpoint'])
+        self.sparqldb = SPARQLWrapper(config['db_endpoint'])
 
     @staticmethod
     def clean_labels(label):
@@ -291,8 +299,38 @@ class Wikifier(object):
                                     qnode_set.add(_[1])
                         except:
                             print(c_tuple)
-        return qnode_set
+        return list(qnode_set)
 
+    def get_db_uris(self, df):
+        dburis = set()
+        candidates_strings = df['candidates'].values
+        for candidates_string in candidates_strings:
+            if candidates_string is not None and isinstance(candidates_string, str):
+                q_scores = candidates_string.split('@')
+                for q_score in q_scores:
+                    if q_score != 'nan':
+                        q_score_split = q_score.split(':')
+                        id = str(q_score_split[0])
+                        qnode = q_score_split[1]
+                        if id == '5':
+                            group_id_tup = qnode.split('$')
+                            _group_id = group_id_tup[0]
+                            if _group_id in self.db_connected_comps:
+                                dburis.update(self.db_connected_comps[_group_id])
+
+        return list(dburis)
+
+    def update_qnode_dburi_caches(self, db_from_q, q_from_db):
+        for k, v in db_from_q.qnode_dburi_map.items():
+            if v and v not in q_from_db.dburi_qnode_map:
+                q_from_db.dburi_qnode_map[v] = k
+
+        for k, v in q_from_db.dburi_qnode_map.items():
+            if v and v not in db_from_q.qnode_dburi_map:
+                db_from_q.qnode_dburi_map[v] = k
+
+        db_from_q.write_qnode_dburi_map_to_disk()
+        q_from_db.write_dburi_qnode_map_to_disk()
 
     def wikify(self, df, column=None):
         if column is None:
@@ -307,3 +345,11 @@ class Wikifier(object):
         # find the candidates
         df['_candidates'] = df['_clean_label'].map(lambda x: self.run_query(x))
         self.aqs = self.query_average_scores(df)
+        all_qnodes = self.get_candidates_qnodes_set(df)
+        all_dburis = self.get_db_uris(df)
+        db_from_q = DBURIsFromQnodes()
+        q_from_db = QNodesFromDBURIs()
+        q_from_db.get_dburis_from_qnodes(all_qnodes)
+        db_from_q.uris_to_qnodes(all_dburis)
+
+        self.update_qnode_dburi_caches(db_from_q, q_from_db)
