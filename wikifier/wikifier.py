@@ -9,6 +9,7 @@ from get_dburis_from_qnodes import DBURIsFromQnodes
 from get_qnodes_from_dburis import QNodesFromDBURIs
 from add_levenshtein_similarity_feature import AddLevenshteinSimilarity
 from candidate_selection import CandidateSelection
+from dburi_typeof import DBURITypeOf
 
 
 class Wikifier(object):
@@ -387,6 +388,14 @@ class Wikifier(object):
                 _qnode = q_from_db.dburi_qnode_map[_dburi]
                 if _qnode is not None:
                     all_qnodes.add(_qnode)
+
+        for qnode in all_qnodes:
+            _dburi = db_from_q.qnode_dburi_map.get(qnode, None)
+            if _dburi:
+                all_dburis.add(_dburi)
+
+        dbto = DBURITypeOf()
+        dburi_typeof_map = dbto.process(all_dburis)
 
         self.create_qnode_to_labels_dict(list(all_qnodes))
 
