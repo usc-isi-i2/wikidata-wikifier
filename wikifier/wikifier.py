@@ -8,6 +8,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from get_dburis_from_qnodes import DBURIsFromQnodes
 from get_qnodes_from_dburis import QNodesFromDBURIs
 from add_levenshtein_similarity_feature import AddLevenshteinSimilarity
+from candidate_selection import CandidateSelection
 
 
 class Wikifier(object):
@@ -391,5 +392,17 @@ class Wikifier(object):
 
         lev_similarity = AddLevenshteinSimilarity()
         df = lev_similarity.add_lev_feature(df, self.qnode_to_labels_dict, self.dburi_to_labels_dict)
+
+        cs = CandidateSelection(self.db_connected_comps, self.qnode_dburi_map, self.dburi_qnode_map,
+                                self.dburi_to_labels_dict, self.aqs)
+        df = cs.select_high_precision_results(df)
+        df_high_precision = df.loc[df['answer'].notnull()]
+
+        df_hard = df.loc[df['answer'].isnull()]
+
+
+        # TODO Calculate CTA
+        cta_class = None
+        df = cs.select_candidates_hard(df, cta_class)
 
         self.update_qnode_dburi_caches(db_from_q, q_from_db)

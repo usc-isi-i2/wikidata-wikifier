@@ -89,6 +89,6 @@ class AddLevenshteinSimilarity(object):
         return '@'.join(results)
 
     def add_lev_feature(self, df, wikidata_index_dict, db_index_dict):
-        df['_dummy'] = list(zip(df._clean_label, df.candidates))
+        df['_dummy'] = list(zip(df._clean_label, df._candidates))
         df['lev_feature'] = df['_dummy'].map(lambda x: self.compute_lev(x, wikidata_index_dict, db_index_dict))
         return df
