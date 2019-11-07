@@ -7,6 +7,7 @@ class DBURITypeOf:
         config = json.load(open('config.json'))
         self.sparql = SPARQLWrapper(config['wd_endpoint'])
         self.sparqldb = SPARQLWrapper(config['db_endpoint'])
+        self.super_classes = json.load(open('./caches/db_class_to_superclass.json'))
 
     def IsInstanceOf(self, uris):
         uriStr = " ".join(["(<{}>)".format(uri) for uri in uris])
@@ -19,7 +20,15 @@ class DBURITypeOf:
         for uri in uris:
             instances[uri] = []
         for result in results["results"]["bindings"]:
-            instances[result['y']['value']].append(result['x']['value'])
+            uri = result['y']['value']
+            _type = result['x']['value']
+            if _type in instances[uri]:
+                continue
+            instances[uri].append(_type)
+            if _type in self.super_classes:
+                for super_class in self.super_classes[_type]:
+                    if super_class not in instances[uri]:
+                        instances[uri].append(super_class)
         return instances
 
     def getRedirects(self, uris):

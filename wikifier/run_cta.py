@@ -21,7 +21,8 @@ class CTA(object):
 
     def is_instance_of(self, uri):
         self.sparqldb.setQuery(
-            "select distinct ?x where {{ <{}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?x . ?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .}}".format(
+            "select distinct ?x where {{ <{}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?x . "
+            "?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .}}".format(
                 uri))
         self.sparqldb.setReturnFormat(JSON)
         results = self.sparqldb.query().convert()
