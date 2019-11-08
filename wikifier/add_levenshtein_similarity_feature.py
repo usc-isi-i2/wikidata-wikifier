@@ -8,6 +8,7 @@ class AddLevenshteinSimilarity(object):
         self.lev = NormalizedLevenshtein()
 
     def lev_mapper(self, label, wikidata_json):
+        # TODO case insensitive matching ?
         qnode = wikidata_json['id']
         max_lev = -1
         max_label = None

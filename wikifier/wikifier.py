@@ -1,18 +1,17 @@
 import ftfy
 import re
-import requests
 import json
 import string
-from SPARQLWrapper import SPARQLWrapper, JSON
+import requests
+import traceback
+from wikifier.run_cta import CTA
+from SPARQLWrapper import SPARQLWrapper
+from wikifier.dburi_typeof import DBURITypeOf
+from wikifier.candidate_selection import CandidateSelection
 from wikifier.get_dburis_from_qnodes import DBURIsFromQnodes
 from wikifier.get_qnodes_from_dburis import QNodesFromDBURIs
 from wikifier.add_levenshtein_similarity_feature import AddLevenshteinSimilarity
-from wikifier.candidate_selection import CandidateSelection
-from wikifier.dburi_typeof import DBURITypeOf
-from wikifier.run_cta import CTA
-import traceback
 
-drop_cols = ["_dummy", "_dummy_2", "_dummy_3"]
 
 class Wikifier(object):
 
@@ -413,6 +412,8 @@ class Wikifier(object):
         df_high_precision = df.loc[df['answer'].notnull()]
         cta_class = cta.process(df_high_precision)
         df = cs.select_candidates_hard(df, cta_class)
+        
+        df['cta_class'] = cta_class.replace(' ', ',')
+        # df['db_class'] = df['db_classes'].map(lambda x: ','.join(x))
         self.update_qnode_dburi_caches(db_from_q, q_from_db)
-        # df = df.drop(column=drop_cols)
         return df
