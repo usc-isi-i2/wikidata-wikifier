@@ -9,3 +9,4 @@ swifter
 nltk
 SPARQLWrapper
 ftfy
+flask

@@ -15,7 +15,8 @@ from run_cta import CTA
 
 class Wikifier(object):
 
-    def __init__(self, config):
+    def __init__(self):
+        config = json.load(open('config.json'))
         self.asciiiiii = set(string.printable)
         self.es_url = config['es_url']
         self.es_index = config['es_index']
