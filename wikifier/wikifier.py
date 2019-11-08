@@ -10,6 +10,7 @@ from get_qnodes_from_dburis import QNodesFromDBURIs
 from add_levenshtein_similarity_feature import AddLevenshteinSimilarity
 from candidate_selection import CandidateSelection
 from dburi_typeof import DBURITypeOf
+from run_cta import CTA
 
 
 class Wikifier(object):
@@ -395,7 +396,9 @@ class Wikifier(object):
                 all_dburis.add(_dburi)
 
         dbto = DBURITypeOf()
+
         dburi_typeof_map = dbto.process(all_dburis)
+        cta = CTA(dburi_typeof_map)
 
         self.create_qnode_to_labels_dict(list(all_qnodes))
 
@@ -406,12 +409,7 @@ class Wikifier(object):
                                 self.dburi_to_labels_dict, self.aqs)
         df = cs.select_high_precision_results(df)
         df_high_precision = df.loc[df['answer'].notnull()]
-
-        df_hard = df.loc[df['answer'].isnull()]
-
-
-        # TODO Calculate CTA
-        cta_class = None
+        cta_class = cta.process(df_high_precision)
         df = cs.select_candidates_hard(df, cta_class)
-
         self.update_qnode_dburi_caches(db_from_q, q_from_db)
+        return df

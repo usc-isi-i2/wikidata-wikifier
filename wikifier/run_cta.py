@@ -1,11 +1,6 @@
 import pandas as pd
 import json
-import csv
-import multiprocessing
-from tqdm import tqdm
 from SPARQLWrapper import SPARQLWrapper, JSON
-
-n_processes = 12
 
 
 class CTA(object):
@@ -75,68 +70,13 @@ class CTA(object):
             self.find_class(max_validuri, subclasses, max_class, ans_list, threshold)
             return
 
-    def process(self, idx_group_t_c):
-        idx_group, t, c = idx_group_t_c
-        index, group = idx_group
-        File, Col = index
+    def process(self, df, threshold=0.508, class_level=0):
 
-        urilist = group['answer'].tolist()
+        urilist = df['answer'].tolist()
 
         ans_list = []
-        self.find_class(urilist, self.super_classes, '', ans_list, t)
-        print(ans_list)
+        self.find_class(urilist, self.super_classes, '', ans_list, threshold)
         ans_list = ans_list[1:]
-        if len(ans_list) <= c:
-            [File, Col, ""]
-        return [File, Col, " ".join(ans_list)]
-
-    def work_parallel(t, c=1):
-        print("min class level" + str(c) + ", running...")
-        print("threshold setting:" + str(t) + ", running...")
-        work_list = []
-        pool = multiprocessing.Pool(processes=n_processes)
-        for idx_group in tqdm(targets.groupby(['f', 'c'])):
-            work_list.append((idx_group, t, c))
-
-        result_list = pool.map(process, tqdm(work_list))
-        with open(output_path + '/CTA_ans_hackv2_' + str(t) + '_' + str(c) + '.csv', 'w', newline='') as myfile:
-            for result_row in result_list:
-                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-                wr.writerow(result_row)
-
-
-from argparse import ArgumentParser
-
-parser = ArgumentParser()
-parser.add_argument("-e", action="store", type=str, dest="cea_result_path")
-parser.add_argument("-o", action="store", type=str, dest="output_path")
-parser.add_argument("-c", action="store", type=str, dest="cta_cache_path")
-args, _ = parser.parse_known_args()
-cea_result_path = args.cea_result_path
-output_path = args.output_path
-cta_cache_path = args.cta_cache_path
-
-# SuperClassdf = pd.read_csv('{}/SuperClasses.csv'.format(cta_cache_path), header=None)
-# super_classes = SuperClassdf[0].tolist()
-#
-# TypeOfFile = open("{}/TypeOf.json".format(cta_cache_path), "r")
-# dburi_typeof = json.loads(TypeOfFile.read())
-#
-# DBClassesFile = open("{}/DBClasses.json".format(cta_cache_path), "r")
-# db_classes = json.loads(DBClassesFile.read())
-#
-# DBClassesClosureFile = open("{}/DBClassesClosure.json".format(cta_cache_path), "r")
-# db_classes_closure = json.loads(DBClassesClosureFile.read())
-#
-# targets = pd.read_csv(cea_result_path, dtype=object)
-
-work_parallel(0.508, 0)
-# t=0.508
-# c=0
-# a = process(((('la_dataset', 'column'), targets), t, c))
-# with open(output_path + '/CTA_ans_hackv2_' + str(t) + '_' + str(c) + '.csv', 'w', newline='') as myfile:
-#     for result_row in a:
-#         wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-#         wr.writerow(result_row)
-
-open("{}/TypeOf.json".format(cta_cache_path), "w").write(json.dumps(dburi_typeof))
+        if len(ans_list) <= class_level:
+            return ""
+        return " ".join(ans_list)
