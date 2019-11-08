@@ -5,8 +5,8 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 
 class QNodesFromDBURIs(object):
     def __init__(self):
-        config = json.load(open('config.json'))
-        self.cache_path = './wikifier/caches/dburi_to_qnode_map.json'
+        config = json.load(open('wikifier/config.json'))
+        self.cache_path = 'wikifier/caches/dburi_to_qnode_map.json'
         self.dburi_qnode_map = json.load(open(self.cache_path))
         self.sparql = SPARQLWrapper(config['wd_endpoint'])
         self.sparqldb = SPARQLWrapper(config['db_endpoint'])

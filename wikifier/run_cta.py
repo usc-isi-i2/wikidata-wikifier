@@ -7,11 +7,11 @@ class CTA(object):
     def __init__(self, dburi_typeof):
         self.dburi_typeof = dburi_typeof
 
-        self.super_classes = pd.read_csv('./caches/SuperClasses.csv', header=None)[0].tolist()
+        self.super_classes = pd.read_csv('wikifier/caches/SuperClasses.csv', header=None)[0].tolist()
 
-        self.db_classes = json.load(open('./caches/DBClasses.json'))
+        self.db_classes = json.load(open('wikifier/caches/DBClasses.json'))
 
-        self.db_classes_closure = json.load(open('./caches/DBClassesClosure.json'))
+        self.db_classes_closure = json.load(open('wikifier/caches/DBClassesClosure.json'))
         self.sparqldb = SPARQLWrapper("http://dbpedia.org/sparql")
 
     def is_instance_of(self, uri):
@@ -59,7 +59,6 @@ class CTA(object):
         max_class = ''
         for superclass in classlist:
             [score, validuri] = self.evaluate_class_closure(urilist, superclass)
-            print(score, validuri)
             if max_score < score:
                 max_score = score
                 max_validuri = validuri

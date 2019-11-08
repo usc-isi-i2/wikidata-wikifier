@@ -22,7 +22,7 @@ class AddLevenshteinSimilarity(object):
             return (qnode, max_lev, max_label)
         return (None, None, None)
 
-    def lev_mapper_dbpeda(self, label, db_json):
+    def lev_mapper_dbpedia(self, label, db_json):
         db_group = db_json['id']
         max_lev = -1
         max_label = None
@@ -83,7 +83,7 @@ class AddLevenshteinSimilarity(object):
             if r[0] is not None:
                 results.append('{}:{}'.format(r[0], r[1]))
         for db_json in db_jsons:
-            r = self.lev_mapper_dbpeda(clean_label, db_json)
+            r = self.lev_mapper_dbpedia(clean_label, db_json)
             if r[0] is not None:
                 results.append('{}:{}'.format(r[0], r[1]))
         return '@'.join(results)

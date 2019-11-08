@@ -4,10 +4,10 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 
 class DBURITypeOf:
     def __init__(self):
-        config = json.load(open('config.json'))
+        config = json.load(open('wikifier/config.json'))
         self.sparql = SPARQLWrapper(config['wd_endpoint'])
         self.sparqldb = SPARQLWrapper(config['db_endpoint'])
-        self.super_classes = json.load(open('./caches/db_class_to_superclass.json'))
+        self.super_classes = json.load(open('wikifier/caches/db_class_to_superclass.json'))
 
     def IsInstanceOf(self, uris):
         uriStr = " ".join(["(<{}>)".format(uri) for uri in uris])

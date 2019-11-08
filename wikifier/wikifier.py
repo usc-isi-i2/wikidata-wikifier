@@ -1,22 +1,23 @@
-import pandas as pd
 import ftfy
 import re
 import requests
 import json
 import string
 from SPARQLWrapper import SPARQLWrapper, JSON
-from get_dburis_from_qnodes import DBURIsFromQnodes
-from get_qnodes_from_dburis import QNodesFromDBURIs
-from add_levenshtein_similarity_feature import AddLevenshteinSimilarity
-from candidate_selection import CandidateSelection
-from dburi_typeof import DBURITypeOf
-from run_cta import CTA
+from wikifier.get_dburis_from_qnodes import DBURIsFromQnodes
+from wikifier.get_qnodes_from_dburis import QNodesFromDBURIs
+from wikifier.add_levenshtein_similarity_feature import AddLevenshteinSimilarity
+from wikifier.candidate_selection import CandidateSelection
+from wikifier.dburi_typeof import DBURITypeOf
+from wikifier.run_cta import CTA
+import traceback
 
+drop_cols = ["_dummy", "_dummy_2", "_dummy_3"]
 
 class Wikifier(object):
 
     def __init__(self):
-        config = json.load(open('config.json'))
+        config = json.load(open('wikifier/config.json'))
         self.asciiiiii = set(string.printable)
         self.es_url = config['es_url']
         self.es_index = config['es_index']
@@ -37,14 +38,14 @@ class Wikifier(object):
         self.wiki_labels_search_url = '{}/{}/{}/_search'.format(self.es_url, self.wiki_labels_index,
                                                                 self.wiki_labels_doc)
 
-        self.query_1 = json.load(open('./queries/wiki_query_1.json'))
-        self.query_2 = json.load(open('./queries/wiki_query_2.json'))
-        self.query_more_like_this = json.load(open('./queries/wiki_query_more_like_this.json'))
-        self.query_dbpedia_labels = json.load(open('./queries/wiki_query_dbpedia_labels.json'))
+        self.query_1 = json.load(open('wikifier/queries/wiki_query_1.json'))
+        self.query_2 = json.load(open('wikifier/queries/wiki_query_2.json'))
+        self.query_more_like_this = json.load(open('wikifier/queries/wiki_query_more_like_this.json'))
+        self.query_dbpedia_labels = json.load(open('wikifier/queries/wiki_query_dbpedia_labels.json'))
         self.seen_labels = dict()
-        self.db_connected_comps = json.load(open('./caches/dbpedia_redirect_connected_components.json'))
-        self.qnode_dburi_map = json.load(open('./wikifier/caches/qnode_to_dburi_map.json'))
-        self.dburi_qnode_map = json.load(open('./wikifier/caches/dburi_to_qnode_map.json'))
+        self.db_connected_comps = json.load(open('wikifier/caches/dbpedia_redirect_connected_components.json'))
+        self.qnode_dburi_map = json.load(open('wikifier/caches/qnode_to_dburi_map.json'))
+        self.dburi_qnode_map = json.load(open('wikifier/caches/dburi_to_qnode_map.json'))
         self.sparql = SPARQLWrapper(config['wd_endpoint'])
         self.sparqldb = SPARQLWrapper(config['db_endpoint'])
         self.qnode_to_labels_dict = {}
@@ -108,7 +109,7 @@ class Wikifier(object):
         if response.status_code == 200:
             hits = response.json()['hits']['hits']
             results = [
-                '{}:{}:{}'.format('3', x['_id'], self.aqs['3']['lambda'] * (float(x['_score']) / self.aqs['3']['avg']))
+                '{}:{}:{}'.format('3', x['_id'], x['_score'])
                 for x
                 in
                 hits]
@@ -214,9 +215,8 @@ class Wikifier(object):
 
             return '@'.join(response)
         except Exception as e:
-            print('SPECIAL')
-            print(e)
-            return None
+            traceback.print_exc()
+            raise e
 
     def search_es(self, query, query_id='1'):
         # return the top matched QNode using ES
@@ -225,8 +225,7 @@ class Wikifier(object):
         if response.status_code == 200:
             hits = response.json()['hits']['hits']
             results = [
-                '{}:{}:{}'.format(query_id, x['_id'],
-                                  self.aqs[query_id]['lambda'] * float(x['_score']) / self.aqs[query_id]['avg'])
+                '{}:{}:{}'.format(query_id, x['_id'], x['_score'])
                 for x in hits]
             return results if len(results) > 0 else None
         return None
@@ -236,11 +235,13 @@ class Wikifier(object):
         response = requests.post(self.dbpedia_label_search_url, json=query)
         if response.status_code == 200:
             hits = response.json()['hits']['hits']
-            results = ['{}:{}:{}'.format(query_id, self.format_dbpedia_labels_index_results(x),
-                                         self.aqs[query_id]['lambda'] * (
-                                                 float(x['_score']) / self.aqs[query_id]['avg'])) for x in hits]
+            results = ['{}:{}:{}'.format(query_id, self.format_dbpedia_labels_index_results(x), x['_score']) for x in
+                       hits]
             for hit in hits:
-                self.dburi_to_labels_dict[hit['_id']] = hit['_source']
+                id = hit['_id']
+                _d = hit["_source"]
+                _d['id'] = id
+                self.dburi_to_labels_dict[id] = _d
             return results if len(results) > 0 else None
         return None
 
@@ -287,7 +288,6 @@ class Wikifier(object):
             except Exception as e:
                 print(e)
                 print(qnode_string)
-                print(type(qnode_string))
                 raise Exception(e)
 
         for k in scores:
@@ -297,7 +297,7 @@ class Wikifier(object):
     @staticmethod
     def get_candidates_qnodes_set(df):
         qnode_set = set()
-        candidate_strings = df['candidates'].values
+        candidate_strings = df['_candidates'].values
         for candidate_string in candidate_strings:
             if candidate_string is not None and isinstance(candidate_string, str):
                 c_tuples = candidate_string.split('@')
@@ -317,7 +317,7 @@ class Wikifier(object):
 
     def get_db_uris(self, df):
         dburis = set()
-        candidates_strings = df['candidates'].values
+        candidates_strings = df['_candidates'].values
         for candidates_string in candidates_strings:
             if candidates_string is not None and isinstance(candidates_string, str):
                 q_scores = candidates_string.split('@')
@@ -377,13 +377,14 @@ class Wikifier(object):
 
         # find the candidates
         df['_candidates'] = df['_clean_label'].map(lambda x: self.run_query(x))
+        df.to_csv('candidates.csv', index=False)
         self.aqs = self.query_average_scores(df)
         all_qnodes = self.get_candidates_qnodes_set(df)
         all_dburis = self.get_db_uris(df)
         db_from_q = DBURIsFromQnodes()
         q_from_db = QNodesFromDBURIs()
-        q_from_db.get_dburis_from_qnodes(list(all_qnodes))
-        db_from_q.uris_to_qnodes(list(all_dburis))
+        q_from_db.uris_to_qnodes(list(all_qnodes))
+        db_from_q.get_dburis_from_qnodes(list(all_dburis))
 
         for _dburi in list(all_dburis):
             if _dburi in q_from_db.dburi_qnode_map:
@@ -398,7 +399,7 @@ class Wikifier(object):
 
         dbto = DBURITypeOf()
 
-        dburi_typeof_map = dbto.process(all_dburis)
+        dburi_typeof_map = dbto.process(list(all_dburis))
         cta = CTA(dburi_typeof_map)
 
         self.create_qnode_to_labels_dict(list(all_qnodes))
@@ -407,10 +408,11 @@ class Wikifier(object):
         df = lev_similarity.add_lev_feature(df, self.qnode_to_labels_dict, self.dburi_to_labels_dict)
 
         cs = CandidateSelection(self.db_connected_comps, self.qnode_dburi_map, self.dburi_qnode_map,
-                                self.dburi_to_labels_dict, self.aqs)
+                                self.dburi_to_labels_dict, self.aqs, dburi_typeof_map)
         df = cs.select_high_precision_results(df)
         df_high_precision = df.loc[df['answer'].notnull()]
         cta_class = cta.process(df_high_precision)
         df = cs.select_candidates_hard(df, cta_class)
         self.update_qnode_dburi_caches(db_from_q, q_from_db)
+        # df = df.drop(column=drop_cols)
         return df

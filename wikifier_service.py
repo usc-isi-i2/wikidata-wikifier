@@ -17,4 +17,5 @@ def wikify():
     columns = request.form.get('columns')
     wikifier = Wikifier()
     r_df = wikifier.wikify(df, column=columns)
-    return r_df
+    r_df.to_csv('results.csv', index=False)
+    return 'SUCCESS'
