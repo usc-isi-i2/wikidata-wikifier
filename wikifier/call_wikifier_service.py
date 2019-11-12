@@ -1,5 +1,7 @@
 import os
 import requests
+import pandas as pd
+from io import StringIO
 
 
 def upload_files(file_path, url, column_name):
@@ -11,11 +13,19 @@ def upload_files(file_path, url, column_name):
         'file': (file_name, open(file_path, mode='rb'), 'application/octet-stream')
     }
     resp = requests.post(url, data=payload, files=files)
-    print(resp.text)
+
+    s = str(resp.content, 'utf-8')
+
+    data = StringIO(s)
+
+    df = pd.read_csv(data)
+    df.to_csv('/tmp/ressssss.csv', index=False)
     return resp.status_code
 
 
 file_path = '/Users/amandeep/Github/wikidata-wikifier/wikifier/cricketers.csv'
+# file_path = '/Users/amandeep/Downloads/test.csv'
 
 url = "http://localhost:7805/wikify"
 print(upload_files(file_path, url, 'cricketers'))
+# print(upload_files(file_path, url, 'stuff'))

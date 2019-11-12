@@ -314,11 +314,11 @@ class CandidateSelection(object):
         df['high_confidence'] = df['top_ranked'].map(lambda x: x[1])
         return df
 
-    def select_candidates_hard(self, df, cta_class):
+    def select_candidates_hard(self, df):
         df['sorted_lev_2'] = df['lev_feature'].map(lambda x: self.sort_lev_features_2(x, threshold=0.3))
         df['sorted_qnodes_2'] = df['_candidates'].map(lambda x: self.sort_qnodes_2(x))
 
-        df['_dummy_3'] = list(zip(df.sorted_lev_2, df.sorted_qnodes_2, cta_class, df.answer, df._clean_label))
+        df['_dummy_3'] = list(zip(df.sorted_lev_2, df.sorted_qnodes_2, df.cta_class, df.answer, df._clean_label))
         df['answer2'] = df['_dummy_3'].map(lambda x: self.choose_candidate_with_cta(x))
         df['final_answer'] = df['answer2'].map(lambda x: x[0])
         df['final_confidence'] = df['answer2'].map(lambda x: x[1])

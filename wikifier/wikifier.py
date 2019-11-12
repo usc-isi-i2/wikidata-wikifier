@@ -1,6 +1,6 @@
-import ftfy
 import re
 import json
+import ftfy
 import string
 import requests
 import traceback
@@ -411,9 +411,9 @@ class Wikifier(object):
         df = cs.select_high_precision_results(df)
         df_high_precision = df.loc[df['answer'].notnull()]
         cta_class = cta.process(df_high_precision)
-        df = cs.select_candidates_hard(df, cta_class)
-        
-        df['cta_class'] = cta_class.replace(' ', ',')
-        # df['db_class'] = df['db_classes'].map(lambda x: ','.join(x))
+
+        df['cta_class'] = cta_class
+        df = cs.select_candidates_hard(df)
+
         self.update_qnode_dburi_caches(db_from_q, q_from_db)
         return df

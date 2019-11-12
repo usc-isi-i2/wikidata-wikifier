@@ -1,6 +1,9 @@
+import pathlib
+import pandas as pd
+from uuid import uuid4
 from flask import Flask
 from flask import request
-import pandas as pd
+from flask import send_from_directory
 from wikifier.wikifier import Wikifier
 
 app = Flask(__name__)
@@ -18,10 +21,14 @@ def wikidata_wikifier():
 @app.route('/wikify', methods=['POST'])
 def wikify():
     df = pd.read_csv(request.files['file'])
+    _uuid_hex = uuid4().hex
+    _path = 'user_files/{}'.format(_uuid_hex)
+    pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
+    df.to_csv('{}/input.csv'.format(_path), index=False)
     columns = request.form.get('columns')
     wikifier = Wikifier()
     r_df = wikifier.wikify(df, column=columns)
-    r_df.to_csv('results_debug.csv', index=False)
+    r_df.to_csv('{}/results_debug.csv'.format(_path), index=False)
     df = r_df.drop(columns=drop_cols)
-    df.to_csv('results.csv', index=False)
-    return 'SUCCESS'
+    df.to_csv('{}/results.csv'.format(_path), index=False)
+    return send_from_directory(_path, 'results.csv')
