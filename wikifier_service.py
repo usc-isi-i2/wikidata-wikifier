@@ -15,7 +15,7 @@ drop_cols = ["_clean_label", "_candidates", "_dummy", "lev_feature", "sorted_lev
 
 @app.route('/')
 def wikidata_wikifier():
-    return 'Input: CSV and a column name, Output: DBPedia URI for each cell in the given column'
+    return "ISI's Wikidata based wikifier"
 
 
 @app.route('/wikify', methods=['POST'])
