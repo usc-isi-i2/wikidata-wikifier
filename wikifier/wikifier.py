@@ -50,6 +50,11 @@ class Wikifier(object):
         self.qnode_to_labels_dict = {}
         self.dburi_to_labels_dict = {}
 
+        self.db_from_q = DBURIsFromQnodes()
+        self.q_from_db = QNodesFromDBURIs()
+        self.dbto = DBURITypeOf()
+        self.lev_similarity = AddLevenshteinSimilarity()
+
     @staticmethod
     def clean_labels(label):
         if not isinstance(label, str):
@@ -380,25 +385,22 @@ class Wikifier(object):
         self.aqs = self.query_average_scores(df)
         all_qnodes = self.get_candidates_qnodes_set(df)
         all_dburis = self.get_db_uris(df)
-        db_from_q = DBURIsFromQnodes()
-        q_from_db = QNodesFromDBURIs()
-        q_from_db.uris_to_qnodes(list(all_qnodes))
-        db_from_q.get_dburis_from_qnodes(list(all_dburis))
+
+        self.q_from_db.uris_to_qnodes(list(all_qnodes))
+        self.db_from_q.get_dburis_from_qnodes(list(all_dburis))
 
         for _dburi in list(all_dburis):
-            if _dburi in q_from_db.dburi_qnode_map:
-                _qnode = q_from_db.dburi_qnode_map[_dburi]
+            if _dburi in self.q_from_db.dburi_qnode_map:
+                _qnode = self.q_from_db.dburi_qnode_map[_dburi]
                 if _qnode is not None:
                     all_qnodes.add(_qnode)
 
         for qnode in all_qnodes:
-            _dburi = db_from_q.qnode_dburi_map.get(qnode, None)
+            _dburi = self.db_from_q.qnode_dburi_map.get(qnode, None)
             if _dburi:
                 all_dburis.add(_dburi)
 
-        dbto = DBURITypeOf()
-
-        dburi_typeof_map = dbto.process(list(all_dburis))
+        dburi_typeof_map = self.dbto.process(list(all_dburis))
         cta = CTA(dburi_typeof_map)
 
         self.create_qnode_to_labels_dict(list(all_qnodes))
@@ -415,5 +417,5 @@ class Wikifier(object):
         df['cta_class'] = cta_class
         df = cs.select_candidates_hard(df)
 
-        self.update_qnode_dburi_caches(db_from_q, q_from_db)
+        # self.update_qnode_dburi_caches(self.db_from_q, self.q_from_db)
         return df

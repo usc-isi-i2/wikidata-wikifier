@@ -72,7 +72,8 @@ class CTA(object):
     def process(self, df, threshold=0.508, class_level=0):
 
         urilist = df['answer'].tolist()
-
+        if len(urilist) == 0:
+            return ""
         ans_list = []
         self.find_class(urilist, self.super_classes, '', ans_list, threshold)
         ans_list = ans_list[1:]
