@@ -1,0 +1,12 @@
+pandas
+requests
+strsim
+tqdm
+numpy
+tensorflow
+click
+swifter
+nltk
+SPARQLWrapper
+ftfy
+flask

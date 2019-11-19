@@ -1,0 +1,48 @@
+{
+  "query": {
+    "function_score": {
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "multi_match": {
+                "query": "",
+                "type": "most_fields",
+                "fields": [
+                  "labels^2",
+                  "descriptions^0.6",
+                  "text^0.3"
+                ]
+              }
+            }
+          ],
+          "must_not": [
+            {
+              "match_phrase": {
+                "descriptions.en.plain": "disambiguation page"
+              }
+            },
+            {
+              "match_phrase": {
+                "descriptions.en.plain": "scientific article"
+              }
+            },
+                        {
+              "match_phrase": {
+                "descriptions.en.plain": "scientific journal"
+              }
+            }
+          ]
+        }
+      },
+      "script_score": {
+        "script": "_score * (1+Math.log(doc['statement_count'].value  + 3*doc['sitelink_count'].value + 2.0)/5) "
+      }
+    }
+  },
+  "_source": [
+    "title",
+    "labels.en"
+],
+  "size": 20
+}
