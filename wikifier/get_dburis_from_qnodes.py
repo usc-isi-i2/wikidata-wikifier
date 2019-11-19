@@ -70,7 +70,6 @@ class DBURIsFromQnodes(object):
         return result
 
     def update_dburis(self, qnodes):
-
         total = 0
         while (qnodes):
             try:
@@ -98,8 +97,9 @@ class DBURIsFromQnodes(object):
         open(self.cache_path, 'w').write(json.dumps(_))
 
     def get_dburis_from_qnodes(self, qnodes):
-        qnodes_new = [qnode for qnode in qnodes if qnode not in self.qnode_dburi_map or (
-                qnode in self.qnode_dburi_map and self.qnode_dburi_map[qnode] is None)]
+        # qnodes_new = [qnode for qnode in qnodes if qnode not in self.qnode_dburi_map or (
+        #         qnode in self.qnode_dburi_map and self.qnode_dburi_map[qnode] is None)]
+        qnodes_new = [qnode for qnode in qnodes if qnode not in self.qnode_dburi_map]
         print('New Qnodes to get DB URIs for: {}'.format(len(qnodes_new)))
         if qnodes_new:
             self.update_dburis(qnodes_new)

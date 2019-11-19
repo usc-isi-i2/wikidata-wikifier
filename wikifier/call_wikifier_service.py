@@ -27,7 +27,8 @@ def upload_files(file_path, url, column_name):
 file_path = 'sample_files/clubs.csv'
 # file_path = '/Users/amandeep/Downloads/test.csv'
 
-url = "http://sitaware.isi.edu/wikify"
+# url = "http://sitaware.isi.edu/wikify"
+url = "http://localhost:7805/wikify"
 print(upload_files(file_path, url, 'clubs'))
 # print(upload_files(file_path, url, 'stuff'))
 

@@ -74,12 +74,8 @@ class QNodesFromDBURIs(object):
         return result
 
     def uris_to_qnodes(self, uris):
-        '''
-        Filter QNodes already in cache. Break into batch of 50. Run approach2. Run approach1 on remaining
-        :param QNodes:
-        :return: DBPedia Uri for each QNode or None
-        '''
-        remaining_nodes = uris
+
+        remaining_nodes = [uri for uri in uris if uri not in self.dburi_qnode_map]
 
         while (remaining_nodes):
             try:
