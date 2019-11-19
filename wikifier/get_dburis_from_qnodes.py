@@ -87,7 +87,7 @@ class DBURIsFromQnodes(object):
             except:
                 continue
 
-        self.write_qnode_dburi_map_to_disk()
+        # self.write_qnode_dburi_map_to_disk()
 
     def write_qnode_dburi_map_to_disk(self):
         _ = {}

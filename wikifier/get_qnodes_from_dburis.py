@@ -103,7 +103,7 @@ class QNodesFromDBURIs(object):
                 self.write_dburi_qnode_map_to_disk()
                 continue
 
-        self.write_dburi_qnode_map_to_disk()
+        # self.write_dburi_qnode_map_to_disk()
 
     def write_dburi_qnode_map_to_disk(self):
         _ = {}

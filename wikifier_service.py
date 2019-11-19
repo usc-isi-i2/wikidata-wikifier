@@ -34,3 +34,6 @@ def wikify():
     df = r_df.drop(columns=drop_cols)
     df.to_csv('{}/results.csv'.format(_path), index=False)
     return send_from_directory(_path, 'results.csv')
+
+if __name__ == '__main__':
+    app.run(threaded=True, host='0.0.0.0', port=80)

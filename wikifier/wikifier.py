@@ -417,5 +417,5 @@ class Wikifier(object):
         df['cta_class'] = cta_class
         df = cs.select_candidates_hard(df)
 
-        self.update_qnode_dburi_caches(self.db_from_q, self.q_from_db)
+        # self.update_qnode_dburi_caches(self.db_from_q, self.q_from_db)
         return df
