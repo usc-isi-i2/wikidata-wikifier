@@ -273,6 +273,6 @@ class CandidateSelection(object):
         df['answer2'] = df['_dummy_3'].map(lambda x: self.choose_candidate_with_cta(x))
         df['final_answer'] = df['answer2'].map(lambda x: x[0])
         df['final_confidence'] = df['answer2'].map(lambda x: x[1])
-        df['db_classes'] = df['final_answer'].map(lambda x: self.dburi_typeof_map.get(x))
+        df['db_classes'] = df['final_answer'].map(lambda x: self.qnode_typeof_map.get(x))
         df['lev_group'] = df['answer2'].map(lambda x: x[2])
         return df
