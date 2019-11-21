@@ -172,6 +172,7 @@ class CandidateSelection(object):
         label = df_tuple[4]
         wiki_candidates = sorted_candidates['wd']
         es_candidates = sorted_candidates['es']
+
         sorted_lev_tuples = list()
 
         for k, v in sorted_lev.items():
@@ -271,8 +272,9 @@ class CandidateSelection(object):
 
         df['_dummy_3'] = list(zip(df.sorted_lev_2, df.sorted_qnodes_2, df.cta_class, df.answer, df._clean_label))
         df['answer2'] = df['_dummy_3'].map(lambda x: self.choose_candidate_with_cta(x))
-        df['final_answer'] = df['answer2'].map(lambda x: x[0])
+        df['answer_Qnode'] = df['answer2'].map(lambda x: x[0])
+        df['answer_dburi'] = df['answer_Qnode'].map(lambda x: self.qnode_to_dburi_map.get(x))
         df['final_confidence'] = df['answer2'].map(lambda x: x[1])
-        df['db_classes'] = df['final_answer'].map(lambda x: self.qnode_typeof_map.get(x))
+        df['db_classes'] = df['answer_Qnode'].map(lambda x: self.qnode_typeof_map.get(x))
         df['lev_group'] = df['answer2'].map(lambda x: x[2])
         return df

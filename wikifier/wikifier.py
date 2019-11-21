@@ -370,7 +370,7 @@ class Wikifier(object):
         return qnode_to_labels_dict
 
     @staticmethod
-    def create_qnode_to_type_dict(self, qnode_to_labels_dict):
+    def create_qnode_to_type_dict(qnode_to_labels_dict):
         qnode_to_type_map = dict()
         for qnode in qnode_to_labels_dict:
             dbpedia_instance_types = qnode_to_labels_dict[qnode]['db_instance_types']
@@ -438,9 +438,10 @@ class Wikifier(object):
         cs = CandidateSelection(qnode_dburi_map, self.aqs, qnode_typeof_map)
         df = cs.select_high_precision_results(df)
         df_high_precision = df.loc[df['answer'].notnull()]
+        df_high_precision.to_csv('debug_hp.csv', index=False)
         cta_class = cta.process(df_high_precision)
 
-        df['cta_class'] = cta_class
+        df['cta_class'] = cta_class.split(' ')[-1]
         df = cs.select_candidates_hard(df)
 
         return df

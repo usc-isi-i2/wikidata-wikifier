@@ -1,6 +1,6 @@
 from similarity.normalized_levenshtein import NormalizedLevenshtein
 
-label_fields = ['wd_labels', 'wd_aliases', 'person_abbr']
+label_fields = ['wd_labels', 'wd_aliases', 'person_abbr', 'db_anchor_texts']
 
 
 class AddLevenshteinSimilarity(object):
@@ -15,6 +15,15 @@ class AddLevenshteinSimilarity(object):
         for label_field in label_fields:
             _labels = wikidata_json.get(label_field)
             for l in _labels:
+                lev_similarity = self.lev.similarity(label, l)
+                if lev_similarity > max_lev:
+                    max_lev = lev_similarity
+                    max_label = l
+        if 'db_labels' in wikidata_json and 'en' in wikidata_json['db_labels']:
+            en_labels = wikidata_json['db_labels']['en']
+            if not isinstance(en_labels, list):
+                en_labels = [en_labels]
+            for l in en_labels:
                 lev_similarity = self.lev.similarity(label, l)
                 if lev_similarity > max_lev:
                     max_lev = lev_similarity
@@ -82,7 +91,7 @@ class AddLevenshteinSimilarity(object):
             r = self.lev_mapper(clean_label, wikidata_json)
             if r[0] is not None:
                 results.append('{}:{}'.format(r[0], r[1]))
-        
+
         return '@'.join(results)
 
     def add_lev_feature(self, df, wikidata_index_dict):
