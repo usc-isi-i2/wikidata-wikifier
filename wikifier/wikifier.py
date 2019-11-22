@@ -42,9 +42,7 @@ class Wikifier(object):
         self.query_more_like_this = json.load(open('wikifier/queries/wiki_query_more_like_this.json'))
         self.query_dbpedia_labels = json.load(open('wikifier/queries/wiki_query_dbpedia_labels.json'))
         self.seen_labels = dict()
-        # self.db_connected_comps = json.load(open('wikifier/caches/dbpedia_redirect_connected_components.json'))
-        # self.qnode_dburi_map = json.load(open('wikifier/caches/qnode_to_dburi_map.json'))
-        # self.dburi_qnode_map = json.load(open('wikifier/caches/dburi_to_qnode_map.json'))
+
         self.sparql = SPARQLWrapper(config['wd_endpoint'])
         self.sparqldb = SPARQLWrapper(config['db_endpoint'])
 
@@ -350,6 +348,9 @@ class Wikifier(object):
 
     def create_qnode_to_labels_dict(self, qnodes):
         qnode_to_labels_dict = dict()
+        if not isinstance(qnodes, list):
+            qnodes = [qnodes]
+
         while (len(qnodes) > 0):
             batch = qnodes[:100]
             qnodes = qnodes[100:]
@@ -394,6 +395,15 @@ class Wikifier(object):
                 qnode_to_dburi_map[qnode] = None
         return qnode_to_dburi_map
 
+    def get_dburi_for_qnode(self, qnode, qnode_dburi_map):
+        if qnode is None:
+            return None
+        if qnode_dburi_map.get(qnode) is not None:
+            return qnode_dburi_map[qnode]
+
+        _qdict = self.create_qnode_to_labels_dict(qnode)
+        return self.create_qnode_to_dburi_map(_qdict)[qnode]
+
     def wikify(self, df, column=None):
         if column is None:
             return df
@@ -409,26 +419,8 @@ class Wikifier(object):
         df.to_csv('candidates.csv', index=False)
         self.aqs = self.query_average_scores(df)
         all_qnodes = self.get_candidates_qnodes_set(df)
-        # all_dburis = self.get_db_uris(df)
-
-        # self.q_from_db.uris_to_qnodes(list(all_qnodes))
-        # self.db_from_q.get_dburis_from_qnodes(list(all_dburis))
-
-        # for _dburi in list(all_dburis):
-        #     if _dburi in self.q_from_db.dburi_qnode_map:
-        #         _qnode = self.q_from_db.dburi_qnode_map[_dburi]
-        #         if _qnode is not None:
-        #             all_qnodes.add(_qnode)
-        #
-        # for qnode in all_qnodes:
-        #     _dburi = self.db_from_q.qnode_dburi_map.get(qnode, None)
-        #     if _dburi:
-        #         all_dburis.add(_dburi)
-
-        # dburi_typeof_map = self.dbto.process(list(all_dburis))
 
         qnode_to_labels_dict = self.create_qnode_to_labels_dict(list(all_qnodes))
-        # TODO create dburi_typeof_map and qnode_to_dburi_map
         qnode_dburi_map = self.create_qnode_to_dburi_map(qnode_to_labels_dict)
         qnode_typeof_map = self.create_qnode_to_type_dict(qnode_to_labels_dict)
         cta = CTA(qnode_typeof_map)
@@ -440,8 +432,7 @@ class Wikifier(object):
         df_high_precision = df.loc[df['answer'].notnull()]
         df_high_precision.to_csv('debug_hp.csv', index=False)
         cta_class = cta.process(df_high_precision)
-
         df['cta_class'] = cta_class.split(' ')[-1]
         df = cs.select_candidates_hard(df)
-
+        df['answer_dburi'] = df['answer_Qnode'].map(lambda x: self.get_dburi_for_qnode(x, qnode_dburi_map))
         return df

@@ -6,14 +6,11 @@ from similarity.normalized_levenshtein import NormalizedLevenshtein
 
 class CandidateSelection(object):
     def __init__(self, qnode_to_dburi_map, aqs, qnode_typeof_map):
-        # self.db_connected_components = db_connected_components
         self.qnode_to_dburi_map = qnode_to_dburi_map
-        # self.dburi_to_qnode_map = dburi_to_qnode_map
-        # self.dburi_to_labels_dict = dburi_to_labels_dict
         self.aqs = aqs
         self.qnode_typeof_map = qnode_typeof_map
-        self.country_dict = json.load(open('wikifier/caches/country_dburi_dict.json'))
-        self.states_dict = json.load(open('wikifier/caches/us_states_dburi_dict.json'))
+        self.country_dict = json.load(open('wikifier/caches/country_qnode_dict.json'))
+        self.states_dict = json.load(open('wikifier/caches/us_states_qnode_dict.json'))
         self.person_classes = json.load(open('wikifier/caches/dbpedia_person_classes.json'))
         self.places_classes = json.load(open('wikifier/caches/dbpedia_place_classes.json'))
         self.normalized_lev = NormalizedLevenshtein()
@@ -33,23 +30,6 @@ class CandidateSelection(object):
             return {}
 
         return qnode_dict
-
-    def sort_lev_features_2(self, lev_feature_s, threshold=0.7):
-
-        r_dict = {}
-        try:
-            qnodes_lev = sorted([z.split(':') for z in lev_feature_s.split('@')])
-            qnodes_lev = list(filter(lambda x: float(x[1]) >= threshold, qnodes_lev))
-
-            for idx in range(len(qnodes_lev)):
-                qnode = qnodes_lev[idx][0]
-                levscore = qnodes_lev[idx][1]
-                r_dict[qnode] = levscore
-
-        except:
-            pass
-
-        return r_dict
 
     def top_ranked(self, df_tuple):
         chosencand = None
@@ -182,10 +162,10 @@ class CandidateSelection(object):
             return answer, 'high_p', 'uniq'
 
         if cta_class is None or cta_class.strip() == '' or cta_class in self.places_classes:
-            # TODO change the states and country dict to have qnodes
             if label in self.states_dict:
                 return self.states_dict[label], 'state_dict', 'uniq'
             if label in self.country_dict:
+                print(label, self.country_dict[label])
                 return self.country_dict[label], 'country_dict', 'uniq'
             lev_cands = sorted(sorted_lev_tuples, key=itemgetter(1), reverse=True)
             lev_cands_groups = itertools.groupby(lev_cands, itemgetter(1))
@@ -223,7 +203,7 @@ class CandidateSelection(object):
 
             cta_cands_groups = itertools.groupby(cta_class_cands, itemgetter(1))
             for k, v in cta_cands_groups:
-                if cta_class in self.person_classes:
+                if cta_class in self.person_classes and False:
                     return None, 'person', 'ambiguous'
                     # _l_s = [(x[0], x[1]) for x in v if x[1] == 1.0]
                 else:
@@ -273,7 +253,6 @@ class CandidateSelection(object):
         df['_dummy_3'] = list(zip(df.sorted_lev_2, df.sorted_qnodes_2, df.cta_class, df.answer, df._clean_label))
         df['answer2'] = df['_dummy_3'].map(lambda x: self.choose_candidate_with_cta(x))
         df['answer_Qnode'] = df['answer2'].map(lambda x: x[0])
-        df['answer_dburi'] = df['answer_Qnode'].map(lambda x: self.qnode_to_dburi_map.get(x))
         df['final_confidence'] = df['answer2'].map(lambda x: x[1])
         df['db_classes'] = df['answer_Qnode'].map(lambda x: self.qnode_typeof_map.get(x))
         df['lev_group'] = df['answer2'].map(lambda x: x[2])
