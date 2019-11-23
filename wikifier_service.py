@@ -12,7 +12,7 @@ wikifier = Wikifier()
 
 drop_cols = ["_clean_label", "_candidates", "_dummy", "lev_feature", "sorted_lev", "sorted_qnodes", "_dummy_2",
              "top_ranked", "answer", "high_confidence", "sorted_lev_2", "sorted_qnodes_2", "_dummy_3", "answer2",
-             "final_confidence", "db_classes", "lev_group"]
+             "final_confidence", "db_classes", "lev_group", "_candidates_list"]
 
 
 @app.route('/')

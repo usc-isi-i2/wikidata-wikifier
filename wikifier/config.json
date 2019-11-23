@@ -5,7 +5,7 @@
   "dbpedia_labels_index": "my_wiki_general_first",
   "names_es_index": "wikidata_names_1",
   "names_es_doc": "docs",
-  "wikidata_dbpedia_joined_index": "wikidata_dbpedia_joined_1",
+  "wikidata_dbpedia_joined_index": "wikidata_dbpedia_joined_2",
   "wikidata_dbpedia_joined_doc": "doc",
   "db_endpoint": "http://dbpedia.org/sparql",
   "wd_endpoint": "http://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql"

@@ -4,12 +4,9 @@ import ftfy
 import string
 import requests
 import traceback
+from wikifier.tfidf import TFIDF
 from wikifier.run_cta import CTA
-from SPARQLWrapper import SPARQLWrapper
-from wikifier.dburi_typeof import DBURITypeOf
 from wikifier.candidate_selection import CandidateSelection
-from wikifier.get_dburis_from_qnodes import DBURIsFromQnodes
-from wikifier.get_qnodes_from_dburis import QNodesFromDBURIs
 from wikifier.add_levenshtein_similarity_feature import AddLevenshteinSimilarity
 
 
@@ -43,12 +40,6 @@ class Wikifier(object):
         self.query_dbpedia_labels = json.load(open('wikifier/queries/wiki_query_dbpedia_labels.json'))
         self.seen_labels = dict()
 
-        self.sparql = SPARQLWrapper(config['wd_endpoint'])
-        self.sparqldb = SPARQLWrapper(config['db_endpoint'])
-
-        self.db_from_q = DBURIsFromQnodes()
-        self.q_from_db = QNodesFromDBURIs()
-        self.dbto = DBURITypeOf()
         self.lev_similarity = AddLevenshteinSimilarity()
 
     @staticmethod
@@ -294,57 +285,31 @@ class Wikifier(object):
             scores[k]['avg'] = float(scores[k]['cumulative'] / scores[k]['count'])
         return scores
 
-    @staticmethod
-    def get_candidates_qnodes_set(df):
+    def get_candidates_qnodes_set(self, df):
         qnode_set = set()
         candidate_strings = df['_candidates'].values
         for candidate_string in candidate_strings:
-            if candidate_string is not None and isinstance(candidate_string, str):
-                c_tuples = candidate_string.split('@')
-                for c_tuple in c_tuples:
-                    if c_tuple is not None and isinstance(c_tuple, str) and c_tuple != 'nan':
-                        try:
-                            vals = c_tuple.split(':')
-                            if vals[0] != '5':
-                                qnode_set.add(vals[1])
-                            else:
-                                _ = vals[1].split('$')
-                                if len(_) > 1:
-                                    qnode_set.add(_[1])
-                        except:
-                            print(c_tuple)
+            qnode_set.update(self.create_list_from_candidate_string(candidate_string))
         return qnode_set
 
-    def get_db_uris(self, df):
-        dburis = set()
-        candidates_strings = df['_candidates'].values
-        for candidates_string in candidates_strings:
-            if candidates_string is not None and isinstance(candidates_string, str):
-                q_scores = candidates_string.split('@')
-                for q_score in q_scores:
-                    if q_score != 'nan':
-                        q_score_split = q_score.split(':')
-                        id = str(q_score_split[0])
-                        qnode = q_score_split[1]
-                        if id == '5':
-                            group_id_tup = qnode.split('$')
-                            _group_id = group_id_tup[0]
-                            if _group_id in self.db_connected_comps:
-                                dburis.update(self.db_connected_comps[_group_id])
-
-        return dburis
-
-    def update_qnode_dburi_caches(self, db_from_q, q_from_db):
-        for k, v in db_from_q.qnode_dburi_map.items():
-            if v and v not in q_from_db.dburi_qnode_map:
-                q_from_db.dburi_qnode_map[v] = k
-
-        for k, v in q_from_db.dburi_qnode_map.items():
-            if v and v not in db_from_q.qnode_dburi_map:
-                db_from_q.qnode_dburi_map[v] = k
-
-        db_from_q.write_qnode_dburi_map_to_disk()
-        q_from_db.write_dburi_qnode_map_to_disk()
+    @staticmethod
+    def create_list_from_candidate_string(candidate_string):
+        qnode_set = set()
+        if candidate_string is not None and isinstance(candidate_string, str):
+            c_tuples = candidate_string.split('@')
+            for c_tuple in c_tuples:
+                if c_tuple is not None and isinstance(c_tuple, str) and c_tuple != 'nan':
+                    try:
+                        vals = c_tuple.split(':')
+                        if vals[0] != '5':
+                            qnode_set.add(vals[1])
+                        else:
+                            _ = vals[1].split('$')
+                            if len(_) > 1:
+                                qnode_set.add(_[1])
+                    except:
+                        print(c_tuple)
+        return list(qnode_set)
 
     def create_qnode_to_labels_dict(self, qnodes):
         qnode_to_labels_dict = dict()
@@ -395,6 +360,15 @@ class Wikifier(object):
                 qnode_to_dburi_map[qnode] = None
         return qnode_to_dburi_map
 
+    @staticmethod
+    def create_high_precision_tfidf_input(label_hp_candidate_tuples):
+        _ = {}
+        for label_hp_candidate_tuple in label_hp_candidate_tuples:
+            label = label_hp_candidate_tuple[0]
+            candidate = label_hp_candidate_tuple[1]
+            _[label] = candidate
+        return _
+
     def get_dburi_for_qnode(self, qnode, qnode_dburi_map):
         if qnode is None:
             return None
@@ -416,6 +390,7 @@ class Wikifier(object):
 
         # find the candidates
         df['_candidates'] = df['_clean_label'].map(lambda x: self.run_query(x))
+        df['_candidates_list'] = df['_candidates'].map(lambda x: self.create_list_from_candidate_string(x))
         df.to_csv('candidates.csv', index=False)
         self.aqs = self.query_average_scores(df)
         all_qnodes = self.get_candidates_qnodes_set(df)
@@ -424,14 +399,20 @@ class Wikifier(object):
         qnode_dburi_map = self.create_qnode_to_dburi_map(qnode_to_labels_dict)
         qnode_typeof_map = self.create_qnode_to_type_dict(qnode_to_labels_dict)
         cta = CTA(qnode_typeof_map)
+        tfidf = TFIDF(qnode_to_labels_dict)
 
         df = self.lev_similarity.add_lev_feature(df, qnode_to_labels_dict)
 
         cs = CandidateSelection(qnode_dburi_map, self.aqs, qnode_typeof_map)
         df = cs.select_high_precision_results(df)
         df_high_precision = df.loc[df['answer'].notnull()]
-        df_high_precision.to_csv('debug_hp.csv', index=False)
+        label_hp_candidate_tuples = list(zip(df_high_precision._clean_label, df_high_precision.answer))
+        high_precision_candidates = self.create_high_precision_tfidf_input(label_hp_candidate_tuples)
+        label_candidates_tuples = list(zip(df._clean_label, df._candidates_list))
+        tfidf_answer = tfidf.compute_tfidf(label_candidates_tuples, high_precision_candidates)
+        print(json.dumps(tfidf_answer, indent=2))
         cta_class = cta.process(df_high_precision)
+
         df['cta_class'] = cta_class.split(' ')[-1]
         df = cs.select_candidates_hard(df)
         df['answer_dburi'] = df['answer_Qnode'].map(lambda x: self.get_dburi_for_qnode(x, qnode_dburi_map))
