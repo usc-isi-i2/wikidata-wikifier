@@ -1,6 +1,6 @@
 from similarity.normalized_levenshtein import NormalizedLevenshtein
 
-label_fields = ['wd_labels', 'wd_aliases', 'person_abbr']
+label_fields = ['wd_labels', 'wd_aliases', 'person_abbr', 'db_anchor_texts']
 
 
 class AddLevenshteinSimilarity(object):
@@ -19,6 +19,25 @@ class AddLevenshteinSimilarity(object):
                 if lev_similarity > max_lev:
                     max_lev = lev_similarity
                     max_label = l
+        if 'db_labels' in wikidata_json and 'en' in wikidata_json['db_labels']:
+            en_labels = wikidata_json['db_labels']['en']
+            if not isinstance(en_labels, list):
+                en_labels = [en_labels]
+            for l in en_labels:
+                lev_similarity = self.lev.similarity(label, l)
+                if lev_similarity > max_lev:
+                    max_lev = lev_similarity
+                    max_label = l
+
+        anchors = wikidata_json.get('db_anchor_texts', [])
+        if not isinstance(anchors, list):
+            anchors = [anchors]
+        for anchor in anchors:
+            lev_similarity = self.lev.similarity(label, anchor)
+            if lev_similarity > max_lev:
+                max_lev = lev_similarity
+                max_label = anchor
+
         if max_label is not None:
             return (qnode, max_lev, max_label)
         return (None, None, None)
@@ -71,25 +90,21 @@ class AddLevenshteinSimilarity(object):
 
         return list(qnode_set), list(db_group_set)
 
-    def compute_lev(self, label_cand_str, wikidata_index_dict, db_index_dict):
+    def compute_lev(self, label_cand_str, wikidata_index_dict):
         clean_label = label_cand_str[0]
         candidate_string = label_cand_str[1]
         qnodes, db_groups = self.candidates_from_candidate_string(candidate_string)
         wikidata_jsons = [wikidata_index_dict[qnode] for qnode in qnodes if qnode in wikidata_index_dict]
-        db_jsons = [db_index_dict[db_group] for db_group in db_groups]
 
         results = []
         for wikidata_json in wikidata_jsons:
             r = self.lev_mapper(clean_label, wikidata_json)
             if r[0] is not None:
                 results.append('{}:{}'.format(r[0], r[1]))
-        for db_json in db_jsons:
-            r = self.lev_mapper_dbpedia(clean_label, db_json)
-            if r[0] is not None:
-                results.append('{}:{}'.format(r[0], r[1]))
+
         return '@'.join(results)
 
-    def add_lev_feature(self, df, wikidata_index_dict, db_index_dict):
+    def add_lev_feature(self, df, wikidata_index_dict):
         df['_dummy'] = list(zip(df._clean_label, df._candidates))
-        df['lev_feature'] = df['_dummy'].map(lambda x: self.compute_lev(x, wikidata_index_dict, db_index_dict))
+        df['lev_feature'] = df['_dummy'].map(lambda x: self.compute_lev(x, wikidata_index_dict))
         return df

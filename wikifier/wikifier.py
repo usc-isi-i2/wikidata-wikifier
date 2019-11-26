@@ -4,13 +4,11 @@ import ftfy
 import string
 import requests
 import traceback
+from wikifier.tfidf import TFIDF
 from wikifier.run_cta import CTA
-from SPARQLWrapper import SPARQLWrapper
-from wikifier.dburi_typeof import DBURITypeOf
 from wikifier.candidate_selection import CandidateSelection
-from wikifier.get_dburis_from_qnodes import DBURIsFromQnodes
-from wikifier.get_qnodes_from_dburis import QNodesFromDBURIs
 from wikifier.add_levenshtein_similarity_feature import AddLevenshteinSimilarity
+import numpy as np
 
 
 class Wikifier(object):
@@ -32,27 +30,17 @@ class Wikifier(object):
         self.names_es_doc = config['names_es_doc']
         self.names_es_search_url = '{}/{}/{}/_search'.format(self.es_url, self.names_es_index, self.names_es_doc)
 
-        self.wiki_labels_index = config['wiki_labels_index']
-        self.wiki_labels_doc = config['wiki_labels_doc']
-        self.wiki_labels_search_url = '{}/{}/{}/_search'.format(self.es_url, self.wiki_labels_index,
-                                                                self.wiki_labels_doc)
+        self.wikidata_dbpedia_joined_index = config['wikidata_dbpedia_joined_index']
+        self.wikidata_dbpedia_joined_doc = config['wikidata_dbpedia_joined_doc']
+        self.wiki_dbpedia_joined_search_url = '{}/{}/{}/_search'.format(self.es_url, self.wikidata_dbpedia_joined_index,
+                                                                        self.wikidata_dbpedia_joined_doc)
 
         self.query_1 = json.load(open('wikifier/queries/wiki_query_1.json'))
         self.query_2 = json.load(open('wikifier/queries/wiki_query_2.json'))
         self.query_more_like_this = json.load(open('wikifier/queries/wiki_query_more_like_this.json'))
         self.query_dbpedia_labels = json.load(open('wikifier/queries/wiki_query_dbpedia_labels.json'))
         self.seen_labels = dict()
-        self.db_connected_comps = json.load(open('wikifier/caches/dbpedia_redirect_connected_components.json'))
-        self.qnode_dburi_map = json.load(open('wikifier/caches/qnode_to_dburi_map.json'))
-        self.dburi_qnode_map = json.load(open('wikifier/caches/dburi_to_qnode_map.json'))
-        self.sparql = SPARQLWrapper(config['wd_endpoint'])
-        self.sparqldb = SPARQLWrapper(config['db_endpoint'])
-        self.qnode_to_labels_dict = {}
-        self.dburi_to_labels_dict = {}
 
-        self.db_from_q = DBURIsFromQnodes()
-        self.q_from_db = QNodesFromDBURIs()
-        self.dbto = DBURITypeOf()
         self.lev_similarity = AddLevenshteinSimilarity()
 
     @staticmethod
@@ -212,12 +200,12 @@ class Wikifier(object):
             if response_4 is not None:
                 response.extend(response_4)
 
-            t_query = self.create_query(self.query_dbpedia_labels, search_term)
-            response_5 = self.search_es_dbpedia(t_query)
-            if response_5 is not None:
-                response.extend(response_5)
+            # t_query = self.create_query(self.query_dbpedia_labels, search_term)
+            # response_5 = self.search_es_dbpedia(t_query)
+            # if response_5 is not None:
+            #     response.extend(response_5)
 
-            return '@'.join(response)
+            return '@'.join([r for r in response if r.strip() != ''])
         except Exception as e:
             traceback.print_exc()
             raise e
@@ -272,7 +260,7 @@ class Wikifier(object):
         qnodes = df['_candidates']
         for qnode_string in qnodes:
             try:
-                if qnode_string is not None and isinstance(qnode_string, str):
+                if qnode_string is not None and isinstance(qnode_string, str) and qnode_string.strip() != '':
                     q_scores = qnode_string.split('@')
                     for q_score in q_scores:
                         if q_score != 'nan':
@@ -298,59 +286,37 @@ class Wikifier(object):
             scores[k]['avg'] = float(scores[k]['cumulative'] / scores[k]['count'])
         return scores
 
-    @staticmethod
-    def get_candidates_qnodes_set(df):
+    def get_candidates_qnodes_set(self, df):
         qnode_set = set()
         candidate_strings = df['_candidates'].values
         for candidate_string in candidate_strings:
-            if candidate_string is not None and isinstance(candidate_string, str):
-                c_tuples = candidate_string.split('@')
-                for c_tuple in c_tuples:
-                    if c_tuple is not None and isinstance(c_tuple, str) and c_tuple != 'nan':
-                        try:
-                            vals = c_tuple.split(':')
-                            if vals[0] != '5':
-                                qnode_set.add(vals[1])
-                            else:
-                                _ = vals[1].split('$')
-                                if len(_) > 1:
-                                    qnode_set.add(_[1])
-                        except:
-                            print(c_tuple)
+            qnode_set.update(self.create_list_from_candidate_string(candidate_string))
         return qnode_set
 
-    def get_db_uris(self, df):
-        dburis = set()
-        candidates_strings = df['_candidates'].values
-        for candidates_string in candidates_strings:
-            if candidates_string is not None and isinstance(candidates_string, str):
-                q_scores = candidates_string.split('@')
-                for q_score in q_scores:
-                    if q_score != 'nan':
-                        q_score_split = q_score.split(':')
-                        id = str(q_score_split[0])
-                        qnode = q_score_split[1]
-                        if id == '5':
-                            group_id_tup = qnode.split('$')
-                            _group_id = group_id_tup[0]
-                            if _group_id in self.db_connected_comps:
-                                dburis.update(self.db_connected_comps[_group_id])
-
-        return dburis
-
-    def update_qnode_dburi_caches(self, db_from_q, q_from_db):
-        for k, v in db_from_q.qnode_dburi_map.items():
-            if v and v not in q_from_db.dburi_qnode_map:
-                q_from_db.dburi_qnode_map[v] = k
-
-        for k, v in q_from_db.dburi_qnode_map.items():
-            if v and v not in db_from_q.qnode_dburi_map:
-                db_from_q.qnode_dburi_map[v] = k
-
-        db_from_q.write_qnode_dburi_map_to_disk()
-        q_from_db.write_dburi_qnode_map_to_disk()
+    @staticmethod
+    def create_list_from_candidate_string(candidate_string):
+        qnode_set = set()
+        if candidate_string is not None and isinstance(candidate_string, str):
+            c_tuples = candidate_string.split('@')
+            for c_tuple in c_tuples:
+                if c_tuple is not None and isinstance(c_tuple, str) and c_tuple != 'nan':
+                    try:
+                        vals = c_tuple.split(':')
+                        if vals[0] != '5':
+                            qnode_set.add(vals[1])
+                        else:
+                            _ = vals[1].split('$')
+                            if len(_) > 1:
+                                qnode_set.add(_[1])
+                    except:
+                        print(c_tuple)
+        return list(qnode_set)
 
     def create_qnode_to_labels_dict(self, qnodes):
+        qnode_to_labels_dict = dict()
+        if not isinstance(qnodes, list):
+            qnodes = [qnodes]
+
         while (len(qnodes) > 0):
             batch = qnodes[:100]
             qnodes = qnodes[100:]
@@ -363,11 +329,68 @@ class Wikifier(object):
                 "size": len(batch)
             }
 
-            response = requests.post(self.wiki_labels_search_url, json=query)
+            response = requests.post(self.wiki_dbpedia_joined_search_url, json=query)
             if response.status_code == 200:
                 es_docs = response.json()['hits']['hits']
                 for es_doc in es_docs:
-                    self.qnode_to_labels_dict[es_doc['_id']] = es_doc['_source']
+                    qnode_to_labels_dict[es_doc['_id']] = es_doc['_source']
+        return qnode_to_labels_dict
+
+    @staticmethod
+    def create_qnode_to_type_dict(qnode_to_labels_dict):
+        qnode_to_type_map = dict()
+        for qnode in qnode_to_labels_dict:
+            dbpedia_instance_types = qnode_to_labels_dict[qnode]['db_instance_types']
+            qnode_to_type_map[qnode] = list(set(dbpedia_instance_types))
+        return qnode_to_type_map
+
+    @staticmethod
+    def create_qnode_to_dburi_map(qnode_to_labels_dict):
+        qnode_to_dburi_map = {}
+        for qnode in qnode_to_labels_dict:
+            dbpedia_urls = qnode_to_labels_dict[qnode]['dbpedia_urls']
+            if len(dbpedia_urls) > 0:
+                for dbpedia_url in dbpedia_urls:
+                    if dbpedia_url.startswith('http://dbpedia.org/resource'):
+                        # english dbpedia
+                        qnode_to_dburi_map[qnode] = dbpedia_url
+                if qnode not in qnode_to_dburi_map:
+                    # no english dbpedia url:
+                    qnode_to_dburi_map[qnode] = dbpedia_urls[0]  # just pick the first one
+            else:
+                qnode_to_dburi_map[qnode] = None
+        return qnode_to_dburi_map
+
+    @staticmethod
+    def create_high_precision_tfidf_input(label_hp_candidate_tuples):
+        _ = {}
+        for label_hp_candidate_tuple in label_hp_candidate_tuples:
+            label = label_hp_candidate_tuple[0]
+            candidate = label_hp_candidate_tuple[1]
+            _[label] = candidate
+        return _
+
+    def get_dburi_for_qnode(self, qnode, qnode_dburi_map):
+        if qnode is None:
+            return None
+        if qnode_dburi_map.get(qnode) is not None:
+            return qnode_dburi_map[qnode]
+
+        _qdict = self.create_qnode_to_labels_dict(qnode)
+        return self.create_qnode_to_dburi_map(_qdict)[qnode]
+
+    @staticmethod
+    def create_lev_similarity_dict(label_lev_tuples, candidate_selection_object):
+        if not label_lev_tuples:
+            return {}
+        label_lev_similarity_dict = {}
+        for label_lev_tuple in label_lev_tuples:
+            if label_lev_tuple:
+                label = label_lev_tuple[0]
+                lv_qnodes_string = label_lev_tuple[1]
+                _l_dict = candidate_selection_object.sort_lev_features(lv_qnodes_string, threshold=0.0)
+                label_lev_similarity_dict[label] = _l_dict
+        return label_lev_similarity_dict
 
     def wikify(self, df, column=None):
         if column is None:
@@ -381,41 +404,37 @@ class Wikifier(object):
 
         # find the candidates
         df['_candidates'] = df['_clean_label'].map(lambda x: self.run_query(x))
+        df['_candidates_list'] = df['_candidates'].map(lambda x: self.create_list_from_candidate_string(x))
         df.to_csv('candidates.csv', index=False)
         self.aqs = self.query_average_scores(df)
         all_qnodes = self.get_candidates_qnodes_set(df)
-        all_dburis = self.get_db_uris(df)
 
-        self.q_from_db.uris_to_qnodes(list(all_qnodes))
-        self.db_from_q.get_dburis_from_qnodes(list(all_dburis))
+        qnode_to_labels_dict = self.create_qnode_to_labels_dict(list(all_qnodes))
+        qnode_dburi_map = self.create_qnode_to_dburi_map(qnode_to_labels_dict)
+        qnode_typeof_map = self.create_qnode_to_type_dict(qnode_to_labels_dict)
+        cta = CTA(qnode_typeof_map)
+        tfidf = TFIDF(qnode_to_labels_dict)
 
-        for _dburi in list(all_dburis):
-            if _dburi in self.q_from_db.dburi_qnode_map:
-                _qnode = self.q_from_db.dburi_qnode_map[_dburi]
-                if _qnode is not None:
-                    all_qnodes.add(_qnode)
+        df = self.lev_similarity.add_lev_feature(df, qnode_to_labels_dict)
 
-        for qnode in all_qnodes:
-            _dburi = self.db_from_q.qnode_dburi_map.get(qnode, None)
-            if _dburi:
-                all_dburis.add(_dburi)
-
-        dburi_typeof_map = self.dbto.process(list(all_dburis))
-        cta = CTA(dburi_typeof_map)
-
-        self.create_qnode_to_labels_dict(list(all_qnodes))
-
-        lev_similarity = AddLevenshteinSimilarity()
-        df = lev_similarity.add_lev_feature(df, self.qnode_to_labels_dict, self.dburi_to_labels_dict)
-
-        cs = CandidateSelection(self.db_connected_comps, self.qnode_dburi_map, self.dburi_qnode_map,
-                                self.dburi_to_labels_dict, self.aqs, dburi_typeof_map)
+        cs = CandidateSelection(qnode_dburi_map, self.aqs, qnode_typeof_map)
         df = cs.select_high_precision_results(df)
+
         df_high_precision = df.loc[df['answer'].notnull()]
+        label_lev_similarity_dict = self.create_lev_similarity_dict(list(zip(df._clean_label, df.lev_feature)), cs)
+
+        label_hp_candidate_tuples = list(zip(df_high_precision._clean_label, df_high_precision.answer))
+        high_precision_candidates = self.create_high_precision_tfidf_input(label_hp_candidate_tuples)
+        label_candidates_tuples = list(zip(df._clean_label, df._candidates_list))
+        tfidf_answer = tfidf.compute_tfidf(label_candidates_tuples, label_lev_similarity_dict,
+                                           high_precision_candidates=high_precision_candidates)
+        for k, v in tfidf_answer.items():
+            tfidf_answer[k] = '{}$$${}'.format(v, qnode_dburi_map.get(v))
+        print(json.dumps(tfidf_answer, indent=2))
+
         cta_class = cta.process(df_high_precision)
 
-        df['cta_class'] = cta_class
+        df['cta_class'] = cta_class.split(' ')[-1]
         df = cs.select_candidates_hard(df)
-
-        # self.update_qnode_dburi_caches(self.db_from_q, self.q_from_db)
+        df['answer_dburi'] = df['answer_Qnode'].map(lambda x: self.get_dburi_for_qnode(x, qnode_dburi_map))
         return df

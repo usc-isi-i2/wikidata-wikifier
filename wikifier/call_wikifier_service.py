@@ -2,7 +2,6 @@ import os
 import requests
 import pandas as pd
 from io import StringIO
-import curlify
 
 
 def upload_files(file_path, url, column_name):
@@ -24,11 +23,7 @@ def upload_files(file_path, url, column_name):
     return resp.status_code
 
 
-file_path = 'sample_files/clubs.csv'
-# file_path = '/Users/amandeep/Downloads/test.csv'
+file_path = 'sample_files/footballers_2.csv'
 
-# url = "http://sitaware.isi.edu/wikify"
 url = "http://localhost:7805/wikify"
-print(upload_files(file_path, url, 'clubs'))
-# print(upload_files(file_path, url, 'stuff'))
-
+print(upload_files(file_path, url, 'footballers'))
