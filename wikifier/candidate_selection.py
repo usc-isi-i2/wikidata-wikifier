@@ -60,14 +60,20 @@ class CandidateSelection(object):
     def sort_qnodes(self, qnode_string):
         sorted_qnodes = list()
 
-        if qnode_string is not None and isinstance(qnode_string, str):
+        if qnode_string is not None and isinstance(qnode_string, str) and qnode_string.strip() != '':
             q_scores = qnode_string.split('@')
             for q_score in q_scores:
                 if q_score != 'nan':
                     q_score_split = q_score.split(':')
-                    score = q_score_split[2]
-                    id = str(q_score_split[0])
-                    qnode = q_score_split[1]
+                    try:
+                        score = q_score_split[2]
+                        id = str(q_score_split[0])
+                        qnode = q_score_split[1]
+                    except:
+                        print("QQQQQQQQ,",qnode_string)
+                        print("NNNNNNNN,", q_score)
+                        raise
+
 
                     if id == '42' or id == '10':
                         sorted_qnodes.append((qnode, float(score) ** 0.25))
@@ -93,10 +99,10 @@ class CandidateSelection(object):
         result_dict = dict()
         result_dict['wd'] = list()
         result_dict['es'] = list()
-        if qnode_string is not None and isinstance(qnode_string, str):
+        if qnode_string is not None and isinstance(qnode_string, str) and qnode_string.strip() != '':
             q_scores = qnode_string.split('@')
             for q_score in q_scores:
-                if q_score != 'nan':
+                if q_score != 'nan' :
                     q_score_split = q_score.split(':')
                     score = q_score_split[2]
                     id = str(q_score_split[0])

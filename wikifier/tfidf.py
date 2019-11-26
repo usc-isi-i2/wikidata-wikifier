@@ -48,7 +48,7 @@ class TFIDF(object):
                 feature_vector_dict[label][candidate] = feature_vector
         return feature_vector_dict
 
-    def compute_tfidf(self, label_candidates_tuples, high_precision_candidates=None):
+    def compute_tfidf(self, label_candidates_tuples, label_lev_similarity_dict, high_precision_candidates=None, ):
         """
         Compute TF/IDF for all candidates.
 
@@ -114,9 +114,21 @@ class TFIDF(object):
                 for f_idx in range(feature_count):
                     ret[e][q] += tfidf_values[f_idx]['tf'] * tfidf_values[f_idx]['idf'] * v[f_idx]
 
-        answer_dict = {}
+        lev_ret = {}
         for label in ret:
             _dict = ret[label]
+            _lev_similarity_dict = label_lev_similarity_dict.get(label, None)
+
+            if _lev_similarity_dict:
+                for qnode, tfidf_score in _dict.items():
+                    _lev_score = float(_lev_similarity_dict.get(qnode, 0.0))
+                    _dict[qnode] = _lev_score * tfidf_score
+            lev_ret[label] = _dict
+
+        answer_dict = {}
+
+        for label in lev_ret:
+            _dict = lev_ret[label]
             max_v = -1.0
             max_q = None
             for k, v in _dict.items():

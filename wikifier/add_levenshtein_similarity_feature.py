@@ -28,6 +28,16 @@ class AddLevenshteinSimilarity(object):
                 if lev_similarity > max_lev:
                     max_lev = lev_similarity
                     max_label = l
+
+        anchors = wikidata_json.get('db_anchor_texts', [])
+        if not isinstance(anchors, list):
+            anchors = [anchors]
+        for anchor in anchors:
+            lev_similarity = self.lev.similarity(label, anchor)
+            if lev_similarity > max_lev:
+                max_lev = lev_similarity
+                max_label = anchor
+
         if max_label is not None:
             return (qnode, max_lev, max_label)
         return (None, None, None)

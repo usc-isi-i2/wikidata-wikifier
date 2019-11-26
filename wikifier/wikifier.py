@@ -8,6 +8,7 @@ from wikifier.tfidf import TFIDF
 from wikifier.run_cta import CTA
 from wikifier.candidate_selection import CandidateSelection
 from wikifier.add_levenshtein_similarity_feature import AddLevenshteinSimilarity
+import numpy as np
 
 
 class Wikifier(object):
@@ -204,7 +205,7 @@ class Wikifier(object):
             # if response_5 is not None:
             #     response.extend(response_5)
 
-            return '@'.join(response)
+            return '@'.join([r for r in response if r.strip() != ''])
         except Exception as e:
             traceback.print_exc()
             raise e
@@ -259,7 +260,7 @@ class Wikifier(object):
         qnodes = df['_candidates']
         for qnode_string in qnodes:
             try:
-                if qnode_string is not None and isinstance(qnode_string, str):
+                if qnode_string is not None and isinstance(qnode_string, str) and qnode_string.strip() != '':
                     q_scores = qnode_string.split('@')
                     for q_score in q_scores:
                         if q_score != 'nan':
@@ -378,6 +379,19 @@ class Wikifier(object):
         _qdict = self.create_qnode_to_labels_dict(qnode)
         return self.create_qnode_to_dburi_map(_qdict)[qnode]
 
+    @staticmethod
+    def create_lev_similarity_dict(label_lev_tuples, candidate_selection_object):
+        if not label_lev_tuples:
+            return {}
+        label_lev_similarity_dict = {}
+        for label_lev_tuple in label_lev_tuples:
+            if label_lev_tuple:
+                label = label_lev_tuple[0]
+                lv_qnodes_string = label_lev_tuple[1]
+                _l_dict = candidate_selection_object.sort_lev_features(lv_qnodes_string, threshold=0.0)
+                label_lev_similarity_dict[label] = _l_dict
+        return label_lev_similarity_dict
+
     def wikify(self, df, column=None):
         if column is None:
             return df
@@ -405,12 +419,19 @@ class Wikifier(object):
 
         cs = CandidateSelection(qnode_dburi_map, self.aqs, qnode_typeof_map)
         df = cs.select_high_precision_results(df)
+
         df_high_precision = df.loc[df['answer'].notnull()]
+        label_lev_similarity_dict = self.create_lev_similarity_dict(list(zip(df._clean_label, df.lev_feature)), cs)
+
         label_hp_candidate_tuples = list(zip(df_high_precision._clean_label, df_high_precision.answer))
         high_precision_candidates = self.create_high_precision_tfidf_input(label_hp_candidate_tuples)
         label_candidates_tuples = list(zip(df._clean_label, df._candidates_list))
-        tfidf_answer = tfidf.compute_tfidf(label_candidates_tuples, high_precision_candidates)
+        tfidf_answer = tfidf.compute_tfidf(label_candidates_tuples, label_lev_similarity_dict,
+                                           high_precision_candidates=high_precision_candidates)
+        for k, v in tfidf_answer.items():
+            tfidf_answer[k] = '{}$$${}'.format(v, qnode_dburi_map.get(v))
         print(json.dumps(tfidf_answer, indent=2))
+
         cta_class = cta.process(df_high_precision)
 
         df['cta_class'] = cta_class.split(' ')[-1]
