@@ -1,5 +1,4 @@
 import math
-import operator
 
 
 class TFIDF(object):
@@ -20,6 +19,10 @@ class TFIDF(object):
             _v = _[1]
             if _p == 'P31':
                 properties_classes_set.add(_v)
+        dbpedia_instances = qnode_dict.get('db_instance_types', [])
+        for dbpedia_instance in dbpedia_instances:
+            if dbpedia_instance.startswith('http://dbpedia.org/ontology/'):
+                properties_classes_set.add(dbpedia_instance)
         return properties_classes_set
 
     def create_all_properties_classes_map(self):
