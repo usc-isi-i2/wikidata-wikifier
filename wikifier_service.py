@@ -18,7 +18,8 @@ def wikidata_wikifier():
 
 @app.route('/wikify', methods=['POST'])
 def wikify():
-    df = pd.read_csv(request.files['file'])
+    df = pd.read_csv(request.files['file'], dtype=object)
+    df.fillna('', inplace=True)
     _uuid_hex = uuid4().hex
     columns = request.form.get('columns')
     _path = 'user_files/{}_{}'.format(columns, _uuid_hex)
