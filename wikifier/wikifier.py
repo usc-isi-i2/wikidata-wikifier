@@ -4,6 +4,7 @@ import ftfy
 import string
 import requests
 import traceback
+import pandas as pd
 from wikifier.tfidf import TFIDF
 from wikifier.run_cta import CTA
 from wikifier.candidate_selection import CandidateSelection
@@ -392,20 +393,35 @@ class Wikifier(object):
                 label_lev_similarity_dict[label] = _l_dict
         return label_lev_similarity_dict
 
-    def wikify(self, df, column=None):
-        if column is None:
-            return df
+    @staticmethod
+    def create_answer_dict(df):
+        answers = list(zip(df.label, df.cta_class, df.answer_Qnode, df.answer_dburi))
+        _dict = {}
+        for answer in answers:
+            _dict[answer[0]] = (answer[1], answer[2], answer[3])
+        return _dict
 
+    def wikify(self, i_df, column=None):
+        if column is None:
+            return i_df
+
+        raw_labels = list()
         if isinstance(column, str):
             # access by column name
-            df['_clean_label'] = df[column].map(lambda x: self.clean_labels(x))
+            raw_labels = list(i_df[column].unique())
         elif isinstance(column, int):
-            df['_clean_label'] = df[df.columns[column]].map(lambda x: self.clean_labels(x))
+            raw_labels = list(i_df.iloc[:, column].unique())
+
+        _new_i_list = []
+        for label in raw_labels:
+            _new_i_list.append({'label': label, '_clean_label': self.clean_labels(label)})
+
+        df = pd.DataFrame(_new_i_list)
 
         # find the candidates
         df['_candidates'] = df['_clean_label'].map(lambda x: self.run_query(x))
         df['_candidates_list'] = df['_candidates'].map(lambda x: self.create_list_from_candidate_string(x))
-        df.to_csv('candidates.csv', index=False)
+
         self.aqs = self.query_average_scores(df)
         all_qnodes = self.get_candidates_qnodes_set(df)
 
@@ -428,13 +444,15 @@ class Wikifier(object):
         label_candidates_tuples = list(zip(df._clean_label, df._candidates_list))
         tfidf_answer = tfidf.compute_tfidf(label_candidates_tuples, label_lev_similarity_dict,
                                            high_precision_candidates=high_precision_candidates)
-        for k, v in tfidf_answer.items():
-            tfidf_answer[k] = '{}$$${}'.format(v, qnode_dburi_map.get(v))
-        print(json.dumps(tfidf_answer, indent=2))
 
         cta_class = cta.process(df_high_precision)
 
         df['cta_class'] = cta_class.split(' ')[-1]
-        df = cs.select_candidates_hard(df)
+        # df = cs.select_candidates_hard(df)
+        df['answer_Qnode'] = df['_clean_label'].map(lambda x: tfidf_answer.get(x))
         df['answer_dburi'] = df['answer_Qnode'].map(lambda x: self.get_dburi_for_qnode(x, qnode_dburi_map))
-        return df
+        answer_dict = self.create_answer_dict(df)
+        i_df['cta_class'] = i_df[column].map(lambda x: answer_dict[x][0])
+        i_df['answer_Qnode'] = i_df[column].map(lambda x: answer_dict[x][1])
+        i_df['answer_dburi'] = i_df[column].map(lambda x: answer_dict[x][2])
+        return i_df

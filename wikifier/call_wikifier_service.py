@@ -23,7 +23,7 @@ def upload_files(file_path, url, column_name):
     return resp.status_code
 
 
-file_path = 'sample_files/footballers_2.csv'
+file_path = 'sample_files/woreda.csv'
 
 url = "http://localhost:7805/wikify"
-print(upload_files(file_path, url, 'footballers'))
+print(upload_files(file_path, url, 'WoredaName'))

@@ -10,10 +10,6 @@ app = Flask(__name__)
 
 wikifier = Wikifier()
 
-drop_cols = ["_clean_label", "_candidates", "_dummy", "lev_feature", "sorted_lev", "sorted_qnodes", "_dummy_2",
-             "top_ranked", "answer", "high_confidence", "sorted_lev_2", "sorted_qnodes_2", "_dummy_3", "answer2",
-             "final_confidence", "db_classes", "lev_group", "_candidates_list"]
-
 
 @app.route('/')
 def wikidata_wikifier():
@@ -30,9 +26,7 @@ def wikify():
     df.to_csv('{}/input.csv'.format(_path), index=False)
 
     r_df = wikifier.wikify(df, column=columns)
-    r_df.to_csv('{}/results_debug.csv'.format(_path), index=False)
-    df = r_df.drop(columns=drop_cols)
-    df.to_csv('{}/results.csv'.format(_path), index=False)
+    r_df.to_csv('{}/results.csv'.format(_path), index=False)
     return send_from_directory(_path, 'results.csv')
 
 
