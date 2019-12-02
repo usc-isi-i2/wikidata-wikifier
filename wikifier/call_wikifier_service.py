@@ -7,7 +7,8 @@ from io import StringIO
 def upload_files(file_path, url, column_name):
     file_name = os.path.basename(file_path)
     payload = {
-        'columns': column_name
+        'columns': column_name,
+        'format': 'iswc'
     }
     files = {
         'file': (file_name, open(file_path, mode='rb'), 'application/octet-stream')
@@ -18,12 +19,12 @@ def upload_files(file_path, url, column_name):
 
     data = StringIO(s)
 
-    df = pd.read_csv(data)
-    df.to_csv('sample_files/{}_results.csv'.format(file_name[:-4]), index=False)
+    df = pd.read_csv(data, header=None)
+    df.to_csv('sample_files/{}_results.csv'.format(file_name[:-4]), index=False, header=False)
     return resp.status_code
 
 
-file_path = 'sample_files/woreda.csv'
+file_path = 'sample_files/clubs.csv'
 
 url = "http://localhost:7805/wikify"
-print(upload_files(file_path, url, 'WoredaName'))
+print(upload_files(file_path, url, 'clubs'))
