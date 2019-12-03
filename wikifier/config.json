@@ -8,5 +8,7 @@
   "wikidata_dbpedia_joined_index": "wikidata_dbpedia_joined_2",
   "wikidata_dbpedia_joined_doc": "doc",
   "db_endpoint": "http://dbpedia.org/sparql",
-  "wd_endpoint": "http://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql"
+  "wd_endpoint": "http://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql",
+  "host": "0.0.0.0",
+  "port": 7805
 }
