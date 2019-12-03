@@ -8,7 +8,7 @@ def upload_files(file_path, url, column_name):
     file_name = os.path.basename(file_path)
     payload = {
         'columns': column_name,
-        'format': 'iswc'
+        'case_sensitive': 'true'
     }
     files = {
         'file': (file_name, open(file_path, mode='rb'), 'application/octet-stream')
@@ -24,7 +24,7 @@ def upload_files(file_path, url, column_name):
     return resp.status_code
 
 
-file_path = 'sample_files/clubs.csv'
+file_path = 'sample_files/woreda_nutrition.csv'
 
 url = "http://localhost:7805/wikify"
-print(upload_files(file_path, url, 'clubs'))
+print(upload_files(file_path, url, 'woreda'))
