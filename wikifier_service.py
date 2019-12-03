@@ -20,6 +20,7 @@ def wikidata_wikifier():
 @app.route('/wikify', methods=['POST'])
 def wikify():
     columns = request.form.get('columns', None)
+    case_sensitive = request.form.get('case_sensitive', 'true').lower() == 'true'
     if columns is not None:
         df = pd.read_csv(request.files['file'], dtype=object)
     else:
@@ -33,13 +34,13 @@ def wikify():
 
     _path = 'user_files/{}_{}'.format(columns, _uuid_hex)
     pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
-    if format.lower() == 'wikifier' or format.lower() == 'iswc':
+    if format and (format.lower() == 'wikifier' or format.lower() == 'iswc'):
         df.to_csv('{}/input.csv'.format(_path), index=False, header=None)
     else:
         df.to_csv('{}/input.csv'.format(_path), index=False)
 
-    r_df = wikifier.wikify(df, column=columns, format=format)
-    if format.lower() == 'wikifier' or format.lower() == 'iswc':
+    r_df = wikifier.wikify(df, column=columns, format=format, case_sensitive=case_sensitive)
+    if format and (format.lower() == 'wikifier' or format.lower() == 'iswc'):
         r_df.to_csv('{}/results.csv'.format(_path), index=False, header=False)
         return json.dumps({'data': open('{}/results.csv'.format(_path)).readlines()})
     else:

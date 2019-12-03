@@ -7,15 +7,18 @@ class AddLevenshteinSimilarity(object):
     def __init__(self):
         self.lev = NormalizedLevenshtein()
 
-    def lev_mapper(self, label, wikidata_json):
-        # TODO case insensitive matching ?
+    def lev_mapper(self, label, wikidata_json, case_sensitive=True):
         qnode = wikidata_json['id']
         max_lev = -1
         max_label = None
+        label_lower = label.lower()
         for label_field in label_fields:
             _labels = wikidata_json.get(label_field)
             for l in _labels:
-                lev_similarity = self.lev.similarity(label, l)
+                if case_sensitive:
+                    lev_similarity = self.lev.similarity(label, l)
+                else:
+                    lev_similarity = self.lev.similarity(label_lower, l.lower())
                 if lev_similarity > max_lev:
                     max_lev = lev_similarity
                     max_label = l
@@ -24,7 +27,10 @@ class AddLevenshteinSimilarity(object):
             if not isinstance(en_labels, list):
                 en_labels = [en_labels]
             for l in en_labels:
-                lev_similarity = self.lev.similarity(label, l)
+                if case_sensitive:
+                    lev_similarity = self.lev.similarity(label, l)
+                else:
+                    lev_similarity = self.lev.similarity(label_lower, l.lower())
                 if lev_similarity > max_lev:
                     max_lev = lev_similarity
                     max_label = l
@@ -33,39 +39,16 @@ class AddLevenshteinSimilarity(object):
         if not isinstance(anchors, list):
             anchors = [anchors]
         for anchor in anchors:
-            lev_similarity = self.lev.similarity(label, anchor)
+            if case_sensitive:
+                lev_similarity = self.lev.similarity(label, anchor)
+            else:
+                lev_similarity = self.lev.similarity(label_lower, anchor.lower())
             if lev_similarity > max_lev:
                 max_lev = lev_similarity
                 max_label = anchor
 
         if max_label is not None:
             return (qnode, max_lev, max_label)
-        return (None, None, None)
-
-    def lev_mapper_dbpedia(self, label, db_json):
-        db_group = db_json['id']
-        max_lev = -1
-        max_label = None
-        anchors = db_json.get('anchor_text', [])
-        if not isinstance(anchors, list):
-            anchors = [anchors]
-        for anchor in anchors:
-            lev_similarity = self.lev.similarity(label, anchor)
-            if lev_similarity > max_lev:
-                max_lev = lev_similarity
-                max_label = anchor
-
-        if 'labels' in db_json and 'en' in db_json['labels']:
-            en_labels = db_json['labels']['en']
-            if not isinstance(en_labels, list):
-                en_labels = [en_labels]
-                for l in en_labels:
-                    lev_similarity = self.lev.similarity(label, l)
-                    if lev_similarity > max_lev:
-                        max_lev = lev_similarity
-                        max_label = l
-        if max_label is not None:
-            return (db_group, max_lev, max_label)
         return (None, None, None)
 
     @staticmethod
@@ -90,7 +73,7 @@ class AddLevenshteinSimilarity(object):
 
         return list(qnode_set), list(db_group_set)
 
-    def compute_lev(self, label_cand_str, wikidata_index_dict):
+    def compute_lev(self, label_cand_str, wikidata_index_dict, case_sensitive):
         clean_label = label_cand_str[0]
         candidate_string = label_cand_str[1]
         qnodes, db_groups = self.candidates_from_candidate_string(candidate_string)
@@ -98,13 +81,14 @@ class AddLevenshteinSimilarity(object):
 
         results = []
         for wikidata_json in wikidata_jsons:
-            r = self.lev_mapper(clean_label, wikidata_json)
+            r = self.lev_mapper(clean_label, wikidata_json, case_sensitive=case_sensitive)
             if r[0] is not None:
                 results.append('{}:{}'.format(r[0], r[1]))
 
         return '@'.join(results)
 
-    def add_lev_feature(self, df, wikidata_index_dict):
+    def add_lev_feature(self, df, wikidata_index_dict, case_sensitive):
         df['_dummy'] = list(zip(df._clean_label, df._candidates))
-        df['lev_feature'] = df['_dummy'].map(lambda x: self.compute_lev(x, wikidata_index_dict))
+        df['lev_feature'] = df['_dummy'].map(
+            lambda x: self.compute_lev(x, wikidata_index_dict, case_sensitive))
         return df

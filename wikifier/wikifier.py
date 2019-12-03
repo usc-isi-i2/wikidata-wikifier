@@ -400,7 +400,7 @@ class Wikifier(object):
             _dict[answer[0]] = (answer[1], answer[2], answer[3])
         return _dict
 
-    def wikify(self, i_df, column=None, format=None):
+    def wikify(self, i_df, column=None, format=None, case_sensitive=True):
         raw_labels = list()
         if isinstance(column, str):
             # access by column name
@@ -427,7 +427,7 @@ class Wikifier(object):
         cta = CTA(qnode_typeof_map)
         tfidf = TFIDF(qnode_to_labels_dict)
 
-        df = self.lev_similarity.add_lev_feature(df, qnode_to_labels_dict)
+        df = self.lev_similarity.add_lev_feature(df, qnode_to_labels_dict, case_sensitive)
 
         cs = CandidateSelection(qnode_dburi_map, self.aqs, qnode_typeof_map)
         df = cs.select_high_precision_results(df)
