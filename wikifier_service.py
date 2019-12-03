@@ -42,7 +42,9 @@ def wikify():
     r_df = wikifier.wikify(df, column=columns, format=format, case_sensitive=case_sensitive)
     if format and (format.lower() == 'wikifier' or format.lower() == 'iswc'):
         r_df.to_csv('{}/results.csv'.format(_path), index=False, header=False)
-        return json.dumps({'data': open('{}/results.csv'.format(_path)).readlines()})
+        lines = open('{}/results.csv'.format(_path)).readlines()
+        lines  = [line.replace('\n', '') for line in lines]
+        return json.dumps({'data': lines})
     else:
         r_df.to_csv('{}/results.csv'.format(_path), index=False)
         return send_from_directory(_path, 'results.csv')
