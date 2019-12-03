@@ -9,7 +9,6 @@ from wikifier.tfidf import TFIDF
 from wikifier.run_cta import CTA
 from wikifier.candidate_selection import CandidateSelection
 from wikifier.add_levenshtein_similarity_feature import AddLevenshteinSimilarity
-import numpy as np
 
 
 class Wikifier(object):
@@ -401,10 +400,7 @@ class Wikifier(object):
             _dict[answer[0]] = (answer[1], answer[2], answer[3])
         return _dict
 
-    def wikify(self, i_df, column=None, format=None, file_name=''):
-        if column is None:
-            return i_df
-
+    def wikify(self, i_df, column=None, format=None):
         raw_labels = list()
         if isinstance(column, str):
             # access by column name
@@ -452,15 +448,16 @@ class Wikifier(object):
         df['answer_Qnode'] = df['_clean_label'].map(lambda x: tfidf_answer.get(x))
         df['answer_dburi'] = df['answer_Qnode'].map(lambda x: self.get_dburi_for_qnode(x, qnode_dburi_map))
         answer_dict = self.create_answer_dict(df)
-        if format and format == 'wikifier':
+
+        if format and format.lower() == 'wikifier':
             _o = list()
             for k in answer_dict:
                 _o.append({'f': '', 'c': '', 'l': k, 'q': answer_dict[k][1]})
             return pd.DataFrame(data=_o)
-        if format and format == 'iswc':
+        if format and format.lower() == 'iswc':
             _o = list()
             for i, k in enumerate(answer_dict):
-                _o.append({'f': file_name, column: 0, 'r': i, 'q': answer_dict[k][1]})
+                _o.append({column: 0, 'r': i, 'q': answer_dict[k][1]})
             return pd.DataFrame(data=_o)
 
         i_df['cta_class'] = i_df[column].map(lambda x: answer_dict[x][0])
