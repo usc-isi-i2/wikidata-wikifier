@@ -22,6 +22,7 @@ def wikify():
     columns = request.form.get('columns', None)
     case_sensitive = request.form.get('case_sensitive', 'true').lower() == 'true'
     if columns is not None:
+        columns = columns.split(',')
         df = pd.read_csv(request.files['file'], dtype=object)
     else:
         df = pd.read_csv(request.files['file'], dtype=object, header=None, names=['value'])
@@ -39,7 +40,7 @@ def wikify():
     else:
         df.to_csv('{}/input.csv'.format(_path), index=False)
 
-    r_df = wikifier.wikify(df, column=columns, format=format, case_sensitive=case_sensitive)
+    r_df = wikifier.wikify(df, columns, format=format, case_sensitive=case_sensitive)
     if format and (format.lower() == 'wikifier' or format.lower() == 'iswc'):
         r_df.to_csv('{}/results.csv'.format(_path), index=False, header=False)
         lines = open('{}/results.csv'.format(_path)).readlines()
