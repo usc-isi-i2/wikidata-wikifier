@@ -173,7 +173,8 @@ class Wikifier(object):
                         "value": search_term
                     }
                 }
-            }
+            },
+            "size": 100
         }
 
         query_lower = {
@@ -183,7 +184,8 @@ class Wikifier(object):
                         "value": search_term.lower()
                     }
                 }
-            }
+            },
+            "size": 100
         }
         response = self.search_es(query, query_id=query_id, es_url=self.wiki_dbpedia_joined_search_url)
         if response is not None:
