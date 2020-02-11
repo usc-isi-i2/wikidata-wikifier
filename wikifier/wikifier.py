@@ -165,6 +165,35 @@ class Wikifier(object):
                 continue
         return None
 
+    def search_es_exact_match(self, search_term, query_id='6'):
+        query = {
+            "query": {
+                "term": {
+                    "all_labels.keyword": {
+                        "value": search_term
+                    }
+                }
+            }
+        }
+
+        query_lower = {
+            "query": {
+                "term": {
+                    "all_labels.keyword_lower": {
+                        "value": search_term.lower()
+                    }
+                }
+            }
+        }
+        response = self.search_es(query, query_id=query_id, es_url=self.wiki_dbpedia_joined_search_url)
+        if response is not None:
+            return response
+        else:
+            response = self.search_es(query_lower, query_id=query_id, es_url=self.wiki_dbpedia_joined_search_url)
+            if response is not None:
+                return response
+        return None
+
     def run_query(self, search_term):
         print(search_term)
         try:
@@ -205,14 +234,21 @@ class Wikifier(object):
             # if response_5 is not None:
             #     response.extend(response_5)
 
+            response_6 = self.search_es_exact_match(search_term)
+            if response_6 is not None:
+                response.extend(response_6)
+
             return '@'.join([r for r in response if r.strip() != ''])
         except Exception as e:
             traceback.print_exc()
             raise e
 
-    def search_es(self, query, query_id='1'):
+    def search_es(self, query, query_id='1', es_url=None):
+        if es_url is None:
+            es_url = self.es_search_url
+
         # return the top matched QNode using ES
-        response = requests.post(self.es_search_url, json=query)
+        response = requests.post(es_url, json=query)
 
         if response.status_code == 200:
             hits = response.json()['hits']['hits']
@@ -254,6 +290,7 @@ class Wikifier(object):
             '3': 1.0,
             '4': 1.0,
             '5': 1.0,
+            '6': 1.0,
             '10': 1,
             '42': 2.0
         }
