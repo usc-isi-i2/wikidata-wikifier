@@ -21,11 +21,18 @@ def wikidata_wikifier():
 def wikify():
     columns = request.form.get('columns', None)
     case_sensitive = request.form.get('case_sensitive', 'true').lower() == 'true'
+    skiprows = request.form.get('skiprows', None)
     if columns is not None:
         columns = columns.split(',')
-        df = pd.read_csv(request.files['file'], dtype=object)
+        if skiprows:
+            df = pd.read_csv(request.files['file'], dtype=object, skiprows=int(skiprows))
+        else:
+            df = pd.read_csv(request.files['file'], dtype=object)
     else:
-        df = pd.read_csv(request.files['file'], dtype=object, header=None, names=['value'])
+        if skiprows:
+            df = pd.read_csv(request.files['file'], dtype=object, header=None, names=['value'], skiprows=int(skiprows))
+        else:
+            df = pd.read_csv(request.files['file'], dtype=object, header=None, names=['value'])
         columns = 'value'
 
     df.fillna('', inplace=True)

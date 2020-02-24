@@ -6,7 +6,7 @@ import requests
 import traceback
 import pandas as pd
 from wikifier.tfidf import TFIDF
-from wikifier.run_cta import CTA
+from wikifier.cta import CTA
 from wikifier.candidate_selection import CandidateSelection
 from wikifier.add_levenshtein_similarity_feature import AddLevenshteinSimilarity
 
@@ -15,6 +15,7 @@ class Wikifier(object):
 
     def __init__(self):
         config = json.load(open('wikifier/config.json'))
+
         self.asciiiiii = set(string.printable)
         self.es_url = config['es_url']
         self.es_index = config['es_index']
@@ -36,9 +37,13 @@ class Wikifier(object):
                                                                         self.wikidata_dbpedia_joined_doc)
 
         self.query_1 = json.load(open('wikifier/queries/wiki_query_1.json'))
+
         self.query_2 = json.load(open('wikifier/queries/wiki_query_2.json'))
+
         self.query_more_like_this = json.load(open('wikifier/queries/wiki_query_more_like_this.json'))
+
         self.query_dbpedia_labels = json.load(open('wikifier/queries/wiki_query_dbpedia_labels.json'))
+
         self.seen_labels = dict()
 
         self.lev_similarity = AddLevenshteinSimilarity()
@@ -165,6 +170,73 @@ class Wikifier(object):
                 continue
         return None
 
+    def search_es_exact_match(self, search_term, query_id='6'):
+        query = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "term": {
+                                "all_labels.keyword": {
+                                    "value": search_term
+                                }
+                            }
+                        }
+                    ],
+                    "must_not": [
+                        {
+                            "match": {
+                                "wd_descriptions": "Wikimedia disambiguation page"
+                            }
+                        },
+                        {
+                            "match": {
+                                "wd_descriptions": "photograph"
+                            }
+                        }
+                    ]
+                }
+            },
+            "size": 100
+        }
+
+        query_lower = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "term": {
+                                "all_labels.keyword_lower": {
+                                    "value": search_term.lower()
+                                }
+                            }
+                        }
+                    ],
+                    "must_not": [
+                        {
+                            "match": {
+                                "wd_descriptions": "Wikimedia disambiguation page"
+                            }
+                        },
+                        {
+                            "match": {
+                                "wd_descriptions": "photograph"
+                            }
+                        }
+                    ]
+                }
+            },
+            "size": 100
+        }
+        response = self.search_es(query, query_id=query_id, es_url=self.wiki_dbpedia_joined_search_url)
+        if response is not None:
+            return response
+        else:
+            response = self.search_es(query_lower, query_id=query_id, es_url=self.wiki_dbpedia_joined_search_url)
+            if response is not None:
+                return response
+        return None
+
     def run_query(self, search_term):
         print(search_term)
         try:
@@ -200,19 +272,21 @@ class Wikifier(object):
             if response_4 is not None:
                 response.extend(response_4)
 
-            # t_query = self.create_query(self.query_dbpedia_labels, search_term)
-            # response_5 = self.search_es_dbpedia(t_query)
-            # if response_5 is not None:
-            #     response.extend(response_5)
+            response_6 = self.search_es_exact_match(search_term)
+            if response_6 is not None:
+                response.extend(response_6)
 
             return '@'.join([r for r in response if r.strip() != ''])
         except Exception as e:
             traceback.print_exc()
             raise e
 
-    def search_es(self, query, query_id='1'):
+    def search_es(self, query, query_id='1', es_url=None):
+        if es_url is None:
+            es_url = self.es_search_url
+
         # return the top matched QNode using ES
-        response = requests.post(self.es_search_url, json=query)
+        response = requests.post(es_url, json=query)
 
         if response.status_code == 200:
             hits = response.json()['hits']['hits']
@@ -221,29 +295,6 @@ class Wikifier(object):
                 for x in hits]
             return results if len(results) > 0 else None
         return None
-
-    def search_es_dbpedia(self, query, query_id='5'):
-        # return the top matched QNode using ES
-        response = requests.post(self.dbpedia_label_search_url, json=query)
-        if response.status_code == 200:
-            hits = response.json()['hits']['hits']
-            results = ['{}:{}:{}'.format(query_id, self.format_dbpedia_labels_index_results(x), x['_score']) for x in
-                       hits]
-            for hit in hits:
-                id = hit['_id']
-                _d = hit["_source"]
-                _d['id'] = id
-                self.dburi_to_labels_dict[id] = _d
-            return results if len(results) > 0 else None
-        return None
-
-    @staticmethod
-    def format_dbpedia_labels_index_results(doc):
-        _source = doc['_source']
-        _id = doc['_id']
-        if 'qnode' in _source:
-            return '{}${}'.format(_id, _source['qnode'])
-        return _id
 
     @staticmethod
     def query_average_scores(df):
@@ -254,9 +305,11 @@ class Wikifier(object):
             '3': 1.0,
             '4': 1.0,
             '5': 1.0,
+            '6': 1.0,
             '10': 1,
             '42': 2.0
         }
+
         qnodes = df['_candidates']
         for qnode_string in qnodes:
             try:
@@ -286,16 +339,61 @@ class Wikifier(object):
             scores[k]['avg'] = float(scores[k]['cumulative'] / scores[k]['count'])
         return scores
 
+    @staticmethod
+    def min_max_query_scores(df):
+        scores = dict()
+
+        l_q_tuples = zip(df['_clean_label'], df['_candidates'])
+        for l_q_tuple in l_q_tuples:
+            try:
+                qnode_string = l_q_tuple[1]
+                label = l_q_tuple[0]
+                if label not in scores:
+                    scores[label] = {}
+
+                if qnode_string is not None and isinstance(qnode_string, str) and qnode_string.strip() != '':
+                    q_scores = qnode_string.split('@')
+                    for q_score in q_scores:
+                        if q_score != 'nan':
+                            q_score = q_score.replace('Category:', '')
+                            q_score = q_score.replace('Wikidata:', '')
+                            q_score_split = q_score.split(':')
+                            score = q_score_split[2]
+                            id = str(q_score_split[0])
+                            if id not in scores[label]:
+                                scores[label][id] = {}
+                                scores[label][id]['scores'] = list()
+                            scores[label][id][q_score_split[1]] = float(score)
+                            scores[label][id]['scores'].append(float(score))
+            except Exception as e:
+                print(e)
+                print(qnode_string)
+                raise Exception(e)
+
+        for label, id_dict in scores.items():
+            for id, _scores in id_dict.items():
+                _max = max(_scores['scores'])
+                _min = min(_scores['scores'])
+                delta = _max - _min
+                for qnode in _scores:
+                    if qnode != 'scores':
+                        if delta == 0.0:
+                            scores[label][id][qnode] = 1.0
+                        else:
+                            scores[label][id][qnode] = (scores[label][id][qnode] - _min) / delta
+        return scores
+
     def get_candidates_qnodes_set(self, df):
         qnode_set = set()
         candidate_strings = df['_candidates'].values
         for candidate_string in candidate_strings:
-            qnode_set.update(self.create_list_from_candidate_string(candidate_string))
+            qnode_set.update(self.create_list_from_candidate_string(candidate_string)[0])
         return qnode_set
 
     @staticmethod
     def create_list_from_candidate_string(candidate_string):
         qnode_set = set()
+        qnode_frequency_dict = dict()
         if candidate_string is not None and isinstance(candidate_string, str):
             c_tuples = candidate_string.split('@')
             for c_tuple in c_tuples:
@@ -304,13 +402,17 @@ class Wikifier(object):
                         vals = c_tuple.split(':')
                         if vals[0] != '5':
                             qnode_set.add(vals[1])
+                            if vals[1] not in qnode_frequency_dict:
+                                qnode_frequency_dict[vals[1]] = 0
+                            qnode_frequency_dict[vals[1]] += 1
                         else:
                             _ = vals[1].split('$')
                             if len(_) > 1:
                                 qnode_set.add(_[1])
                     except:
                         print(c_tuple)
-        return list(qnode_set)
+        return list(qnode_set), {k: v for k, v in
+                                 sorted(qnode_frequency_dict.items(), key=lambda item: item[1], reverse=True)}
 
     def create_qnode_to_labels_dict(self, qnodes):
         qnode_to_labels_dict = dict()
@@ -341,7 +443,12 @@ class Wikifier(object):
         qnode_to_type_map = dict()
         for qnode in qnode_to_labels_dict:
             dbpedia_instance_types = qnode_to_labels_dict[qnode]['db_instance_types']
-            qnode_to_type_map[qnode] = list(set(dbpedia_instance_types))
+            _ = list()
+            for instance_type in dbpedia_instance_types:
+                if instance_type.startswith('http://www.wikidata.org/entity'):
+                    _.append(instance_type.split('/')[-1])
+            # qnode_to_type_map[qnode] = list(set(dbpedia_instance_types))
+            qnode_to_type_map[qnode] = _
         return qnode_to_type_map
 
     @staticmethod
@@ -400,7 +507,7 @@ class Wikifier(object):
             _dict[answer[0]] = (answer[1], answer[2], answer[3])
         return _dict
 
-    def wikify_column(self, i_df, column, case_sensitive=True):
+    def wikify_column(self, i_df, column, case_sensitive=True, debug=False):
         raw_labels = list()
         if isinstance(column, str):
             # access by column name
@@ -416,9 +523,11 @@ class Wikifier(object):
 
         # find the candidates
         df['_candidates'] = df['_clean_label'].map(lambda x: self.run_query(x))
-        df['_candidates_list'] = df['_candidates'].map(lambda x: self.create_list_from_candidate_string(x))
+        df['_candidates_list'] = df['_candidates'].map(lambda x: self.create_list_from_candidate_string(x)[0])
+        df['_candidates_freq'] = df['_candidates'].map(lambda x: self.create_list_from_candidate_string(x)[1])
 
         self.aqs = self.query_average_scores(df)
+
         all_qnodes = self.get_candidates_qnodes_set(df)
 
         qnode_to_labels_dict = self.create_qnode_to_labels_dict(list(all_qnodes))
@@ -441,11 +550,20 @@ class Wikifier(object):
         tfidf_answer = tfidf.compute_tfidf(label_candidates_tuples, label_lev_similarity_dict,
                                            high_precision_candidates=high_precision_candidates)
 
-        cta_class = cta.process(df_high_precision)
+        hp_qnodes = df_high_precision['answer'].tolist()
+        cta_class = cta.process(hp_qnodes)
+
+        if cta_class == "":
+            cta_class = cta.process_frequency_match(all_qnodes)
+            # df['_candidates_list_filtered'] = df['_candidates_list'].map(lambda x: [_qnode for _qnode in x if cta_class in qnode_typeof_map.get(_qnode, [])])
+            # df_second_chance = cs.select_high_precision_results(df, filtered_qnodes=True)
+            # df_second_chance.to_csv('/tmp/debug_3.csv', index=False)
 
         df['cta_class'] = cta_class.split(' ')[-1]
         df['answer_Qnode'] = df['_clean_label'].map(lambda x: tfidf_answer.get(x))
         df['answer_dburi'] = df['answer_Qnode'].map(lambda x: self.get_dburi_for_qnode(x, qnode_dburi_map))
+        if debug:
+            df.to_csv('/tmp/debug.csv', index=None)
         answer_dict = self.create_answer_dict(df)
 
         i_df['{}_cta_class'.format(column)] = i_df[column].map(lambda x: answer_dict[x][0])
@@ -458,7 +576,7 @@ class Wikifier(object):
             columns = [columns]
 
         for column in columns:
-            i_df = self.wikify_column(i_df, column, case_sensitive=case_sensitive)
+            i_df = self.wikify_column(i_df, column, case_sensitive=case_sensitive, debug=True)
 
         if format and format.lower() == 'iswc':
             _o = list()

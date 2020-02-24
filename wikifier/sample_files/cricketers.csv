@@ -1,14 +1,14 @@
-cricketers,teams
-Virat Kohli,royal challengers bangalore
-Tendulkar,mumbai indians
-Dhoni,chennai super kings
-Jasprit Bumrah,mumbai indians
-Ajinkya Rahane, rajasthan royals
-Rohit Sharma,mumbai indians
-Bhuvneshwar Kumar,deccan chargers
-Ravindra Jadeja,chennai super kings
-Rishabh Pant,delhi capitals
-Shikhar Dhawan,delhi capitals
-Cheteshwar Pujara,deccan chargers
-Ishant Sharma,delhi capitals
-Mohammad Shami,kings XI punjab
+cricketers,teams,weight,dob
+Virat Kohli,royal challengers bangalore,152,5/11/88
+Tendulkar,mumbai indians,137,24/04/1973
+Dhoni,chennai super kings,154,7/7/81
+Jasprit Bumrah,mumbai indians,154,6/12/93
+Ajinkya Rahane, rajasthan royals,134,6/6/88
+Rohit Sharma,mumbai indians,159,30/04/1987
+Bhuvneshwar Kumar,deccan chargers,154,5/2/90
+Ravindra Jadeja,chennai super kings,132,6/12/88
+Rishabh Pant,delhi capitals,136,4/8/97
+Shikhar Dhawan,delhi capitals,157,5/12/85
+Cheteshwar Pujara,deccan chargers,157,25/01/1988
+Ishant Sharma,delhi capitals,168,2/9/88
+Mohammad Shami,kings XI punjab,152,3/9/90
