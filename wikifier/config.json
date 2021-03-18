@@ -1,6 +1,8 @@
 {
-  "es_url": "http://kg2018a.isi.edu:9200",
-  "es_index": "my_wiki_content_first",
+  "es_url": "http://ckg06:9200",
+  "augmented_es_index": "wikidata_augmented_index",
+  "exact_match_es_index": "wikidataos-07",
+  "graph_embedding_index": "wikidataos-graph-embedding-03",
   "host": "0.0.0.0",
-  "port": 7805
+  "port": "1703"
 }
