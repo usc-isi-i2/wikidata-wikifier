@@ -10,6 +10,7 @@ from tl.features.feature_voting import feature_voting
 from tl.features.external_embedding import EmbeddingVector
 from tl.features.normalize_scores import normalize_scores
 from tl.candidate_ranking.combine_linearly import combine_linearly
+from tl.features import get_kg_links
 
 
 class Wikifier(object):
@@ -99,7 +100,7 @@ class Wikifier(object):
             'output_column_name': 'graph-embedding-score',
             'embedding_url': f'{self.es_url}/{self.graph_embedding_index}/',
             'input_column_name': 'kg_id',
-            'embedding_file': '/tmp/wikidataos-graph-embedding-01.tsv', # TODO fix this <-----
+            'embedding_file': '/tmp/wikidataos-graph-embedding-01.tsv',  # TODO fix this <-----
             'distance_function': 'cosine'
         })
 
@@ -135,4 +136,8 @@ class Wikifier(object):
                                              output_column='ranking_score',
                                              df=normalized_df)
 
-        return combined_score_df
+        if debug:
+            print('Step 12: Get top ranked result')
+        topk_df = get_kg_links('ranking_score', df=combined_score_df, label_column='label', top_k=1)
+
+        return topk_df
