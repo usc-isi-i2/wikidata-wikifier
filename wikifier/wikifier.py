@@ -11,6 +11,7 @@ from tl.features.external_embedding import EmbeddingVector
 from tl.features.normalize_scores import normalize_scores
 from tl.candidate_ranking.combine_linearly import combine_linearly
 from tl.features import get_kg_links
+from tl.evaluation.join import Join
 
 
 class Wikifier(object):
@@ -36,6 +37,7 @@ class Wikifier(object):
                                               output_column_name='retrieval_score'
                                               )
         self.exact_match = ExactMatches(es_url=self.es_url, es_index=config['exact_match_es_index'])
+        self.join = Join()
 
     def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False):
 
@@ -140,4 +142,7 @@ class Wikifier(object):
             print('Step 12: Get top ranked result')
         topk_df = get_kg_links('ranking_score', df=combined_score_df, label_column='label', top_k=1)
 
-        return topk_df
+        if debug:
+            print('Step 13: join with input file')
+        output_df = self.join.join(topk_df, i_df, 'ranking_score')
+        return output_df
