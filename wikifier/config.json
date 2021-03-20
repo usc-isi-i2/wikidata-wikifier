@@ -1,8 +1,6 @@
 {
   "es_url": "http://ckg06:9200",
-  "augmented_es_index": "wikidata_augmented_index",
-  "exact_match_es_index": "wikidataos-07",
-  "graph_embedding_index": "wikidataos-graph-embedding-03",
+  "augmented_dwd_index": "wikidatadwd-augmented-01",
   "host": "0.0.0.0",
   "port": "1703"
 }
