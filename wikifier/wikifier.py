@@ -10,8 +10,11 @@ from tl.features.feature_voting import feature_voting
 from tl.features.external_embedding import EmbeddingVector
 from tl.features.normalize_scores import normalize_scores
 from tl.candidate_ranking.combine_linearly import combine_linearly
-from tl.features import get_kg_links
+from tl.features.get_kg_links import get_kg_links
 from tl.evaluation.join import Join
+import tempfile
+from glob import glob
+import shutil
 
 
 class Wikifier(object):
@@ -21,12 +24,10 @@ class Wikifier(object):
 
         self.asciiiiii = set(string.printable)
         self.es_url = config['es_url']
-        self.augmented_es_index = config['augmented_es_index']
-        self.exact_match_es_index = config['exact_match_es_index']
-        self.graph_embedding_index = config['graph_embedding_index']
+        self.augmented_dwd_index = config['augmented_dwd_index']
 
         self.fuzzy_augmented = FuzzyAugmented(es_url=self.es_url,
-                                              es_index=self.augmented_es_index,
+                                              es_index=self.augmented_dwd_index,
                                               es_user=None,
                                               es_pass=None,
                                               properties="labels.en,labels.de,labels.es,labels.fr,labels.it,labels.nl,"
@@ -36,11 +37,13 @@ class Wikifier(object):
                                                          "wikitable_anchor_text.en,abbreviated_name.en,redirect_text.en",
                                               output_column_name='retrieval_score'
                                               )
-        self.exact_match = ExactMatches(es_url=self.es_url, es_index=config['exact_match_es_index'])
+        self.exact_match = ExactMatches(es_url=self.es_url, es_index=self.augmented_dwd_index)
         self.join = Join()
+        self.temp_dir = tempfile.mkdtemp()
+        self.auxiliary_fields = ['text_embedding', 'graph_embedding_complex']
 
     def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False):
-
+        print(f'temp folder: {self.temp_dir}')
         if debug:
             print('Step 1: Canonicalize')
         canonical_df = canonicalize(columns, output_column='label', df=i_df, add_context=True)
@@ -51,12 +54,25 @@ class Wikifier(object):
 
         if debug:
             print('Step 3: Get Fuzzy Augmented Candidates')
-        fuzzy_augmented_candidates = self.fuzzy_augmented.get_matches(column='label_clean', df=clean_df)
+        fuzzy_augmented_candidates = self.fuzzy_augmented.get_matches(column='label_clean',
+                                                                      df=clean_df,
+                                                                      auxiliary_fields=self.auxiliary_fields,
+                                                                      auxiliary_folder=self.temp_dir)
 
         if debug:
             print('Step 4: Get Exact Match Candidates')
         plus_exact_match_candidates = self.exact_match.get_exact_matches(column='label_clean',
-                                                                         df=fuzzy_augmented_candidates)
+                                                                         df=fuzzy_augmented_candidates,
+                                                                         auxiliary_fields=self.auxiliary_fields,
+                                                                         auxiliary_folder=self.temp_dir
+                                                                         )
+        # we have the text and graph embeddings for candidates, join the files and deduplicate them
+        for aux_field in self.auxiliary_fields:
+            aux_list = []
+            for f in glob(f'{self.temp_dir}/*{aux_field}.tsv'):
+                aux_list.append(pd.read_csv(f, sep='\t', dtype=object))
+            aux_df = pd.concat(aux_list).drop_duplicates(subset=['qnode']).rename(columns={aux_field: 'embedding'})
+            aux_df.to_csv(f'{self.temp_dir}/{aux_field}.tsv', sep='\t', index=False)
         # plus_exact_match_candidates.to_csv('/tmp/candidates.tsv', sep='\t', index=False)
         # add features
 
@@ -100,9 +116,9 @@ class Wikifier(object):
             'df': features_df,
             'column_vector_strategy': 'centroid-of-singletons',
             'output_column_name': 'graph-embedding-score',
-            'embedding_url': f'{self.es_url}/{self.graph_embedding_index}/',
+            'embedding_url': f'{self.es_url}/{self.augmented_dwd_index}/',
             'input_column_name': 'kg_id',
-            'embedding_file': '/tmp/wikidataos-graph-embedding-01.tsv',  # TODO fix this <-----
+            'embedding_file': f'{self.temp_dir}/graph_embedding_complex.tsv',  # TODO fix this <-----
             'distance_function': 'cosine'
         })
 
@@ -145,4 +161,7 @@ class Wikifier(object):
         if debug:
             print('Step 13: join with input file')
         output_df = self.join.join(topk_df, i_df, 'ranking_score')
+
+        # delete the temp directoru
+        shutil.rmtree(self.temp_dir)
         return output_df
