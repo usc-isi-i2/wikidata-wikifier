@@ -39,10 +39,10 @@ class Wikifier(object):
                                               )
         self.exact_match = ExactMatches(es_url=self.es_url, es_index=self.augmented_dwd_index)
         self.join = Join()
-        self.temp_dir = tempfile.mkdtemp()
         self.auxiliary_fields = ['text_embedding', 'graph_embedding_complex']
 
     def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1):
+        temp_dir = tempfile.mkdtemp()
         if debug:
             print('Step 1: Canonicalize')
         canonical_df = canonicalize(columns, output_column='label', df=i_df, add_context=True)
@@ -56,22 +56,22 @@ class Wikifier(object):
         fuzzy_augmented_candidates = self.fuzzy_augmented.get_matches(column='label_clean',
                                                                       df=clean_df,
                                                                       auxiliary_fields=self.auxiliary_fields,
-                                                                      auxiliary_folder=self.temp_dir)
+                                                                      auxiliary_folder=temp_dir)
 
         if debug:
             print('Step 4: Get Exact Match Candidates')
         plus_exact_match_candidates = self.exact_match.get_exact_matches(column='label_clean',
                                                                          df=fuzzy_augmented_candidates,
                                                                          auxiliary_fields=self.auxiliary_fields,
-                                                                         auxiliary_folder=self.temp_dir
+                                                                         auxiliary_folder=temp_dir
                                                                          )
         # we have the text and graph embeddings for candidates, join the files and deduplicate them
         for aux_field in self.auxiliary_fields:
             aux_list = []
-            for f in glob(f'{self.temp_dir}/*{aux_field}.tsv'):
+            for f in glob(f'{temp_dir}/*{aux_field}.tsv'):
                 aux_list.append(pd.read_csv(f, sep='\t', dtype=object))
             aux_df = pd.concat(aux_list).drop_duplicates(subset=['qnode']).rename(columns={aux_field: 'embedding'})
-            aux_df.to_csv(f'{self.temp_dir}/{aux_field}.tsv', sep='\t', index=False)
+            aux_df.to_csv(f'{temp_dir}/{aux_field}.tsv', sep='\t', index=False)
 
         # add features
 
@@ -117,7 +117,7 @@ class Wikifier(object):
             'output_column_name': 'graph-embedding-score',
             'embedding_url': f'{self.es_url}/{self.augmented_dwd_index}/',
             'input_column_name': 'kg_id',
-            'embedding_file': f'{self.temp_dir}/graph_embedding_complex.tsv',  # TODO fix this <-----
+            'embedding_file': f'{temp_dir}/graph_embedding_complex.tsv',  # TODO fix this <-----
             'distance_function': 'cosine'
         })
 
@@ -162,5 +162,5 @@ class Wikifier(object):
         output_df = self.join.join(topk_df, i_df, 'ranking_score')
 
         # delete the temp directoru
-        shutil.rmtree(self.temp_dir)
+        shutil.rmtree(temp_dir)
         return output_df
