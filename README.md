@@ -25,7 +25,6 @@ Example python code to call the wikifier is available at `wikifier/call_wikifier
 
 Use curl to call the wikifier, input file is `wikifier/sample_files/cricketers.csv`, output file: `wikifier/sample_files/cricketers_results.csv` and get 3 results
 ```
-curl -X POST -F 'file=@wikifier/sample_files/cricketers.csv' \
--F columns=cricketers http://localhost:1703/wikify -F k=3 \
+curl -X POST -F 'file=@wikifier/sample_files/cricketers.csv' http://localhost:1703/wikify?k=3&columns=cricketers \
 -o wikifier/sample_files/cricketers_results.csv
 ```
