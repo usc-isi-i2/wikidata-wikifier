@@ -8,7 +8,8 @@ def upload_files(file_path, url, column_name):
     file_name = os.path.basename(file_path)
     payload = {
         'columns': column_name,
-        'case_sensitive': 'false'
+        'case_sensitive': 'false',
+        'k': 5
     }
     files = {
         'file': (file_name, open(file_path, mode='rb'), 'application/octet-stream')
