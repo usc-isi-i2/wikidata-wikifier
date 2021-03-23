@@ -16,14 +16,16 @@ You should see output similar to this
    WARNING: This is a development server. Do not use it in a production deployment.
    Use a production WSGI server instead.
  * Debug mode: off
- * Running on http://localhost:7805/ (Press CTRL+C to quit)
+ * Running on http://localhost:1703/ (Press CTRL+C to quit)
 ```
 
-The service is now running on `http://localhost:7805/wikify`
+The service is now running on `http://localhost:1703/wikify`
 
 Example python code to call the wikifier is available at `wikifier/call_wikifier_service.py`
 
-Use curl to call the wikifier,
+Use curl to call the wikifier, input file is `wikifier/sample_files/cricketers.csv`, output file: `wikifier/sample_files/cricketers_results.csv` and get 3 results
 ```
-curl -X POST -F 'file=@<path to a csv>' -F columns=<column name to be wikified> http://localhost:7805/wikify -o '<output file path>'
+curl -X POST -F 'file=@wikifier/sample_files/cricketers.csv' \
+-F columns=cricketers http://localhost:1703/wikify -F k=3 \
+-o wikifier/sample_files/cricketers_results.csv
 ```
