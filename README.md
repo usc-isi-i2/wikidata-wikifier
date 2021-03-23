@@ -1,4 +1,13 @@
 # ISI's Wikidata based Wikifier
+
+## Input Parameters
+
+The following input parameters are supported,
+
+- `columns`: a comma separated string of column names to be wikified
+- `k`: top k results for each cell in the input columns
+
+
 ## Install Requirements and run the service
 ```
 git clone https://github.com/usc-isi-i2/wikidata-wikifier
