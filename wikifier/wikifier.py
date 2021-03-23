@@ -42,8 +42,7 @@ class Wikifier(object):
         self.temp_dir = tempfile.mkdtemp()
         self.auxiliary_fields = ['text_embedding', 'graph_embedding_complex']
 
-    def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False):
-        print(f'temp folder: {self.temp_dir}')
+    def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1):
         if debug:
             print('Step 1: Canonicalize')
         canonical_df = canonicalize(columns, output_column='label', df=i_df, add_context=True)
@@ -73,7 +72,7 @@ class Wikifier(object):
                 aux_list.append(pd.read_csv(f, sep='\t', dtype=object))
             aux_df = pd.concat(aux_list).drop_duplicates(subset=['qnode']).rename(columns={aux_field: 'embedding'})
             aux_df.to_csv(f'{self.temp_dir}/{aux_field}.tsv', sep='\t', index=False)
-        # plus_exact_match_candidates.to_csv('/tmp/candidates.tsv', sep='\t', index=False)
+
         # add features
 
         # 1. smallest qnode number
@@ -127,7 +126,6 @@ class Wikifier(object):
         embedding_vector.add_score_column()
         features_df = embedding_vector.get_result_df()
 
-        # features_df.to_csv('/tmp/features.tsv', sep='\t', index=False)
         # normalize scores
         if debug:
             print('Step 10: Normalize Scores')
@@ -156,7 +154,8 @@ class Wikifier(object):
 
         if debug:
             print('Step 12: Get top ranked result')
-        topk_df = get_kg_links('ranking_score', df=combined_score_df, label_column='label', top_k=1)
+            print(f'k:{k}')
+        topk_df = get_kg_links('ranking_score', df=combined_score_df, label_column='label', top_k=k)
 
         if debug:
             print('Step 13: join with input file')
