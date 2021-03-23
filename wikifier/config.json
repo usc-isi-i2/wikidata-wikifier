@@ -1,14 +1,6 @@
 {
-  "es_url": "http://kg2018a.isi.edu:9200",
-  "es_index": "my_wiki_content_first",
-  "es_doc": "page",
-  "dbpedia_labels_index": "my_wiki_general_first",
-  "names_es_index": "wikidata_names_1",
-  "names_es_doc": "docs",
-  "wikidata_dbpedia_joined_index": "wikidata_dbpedia_joined_3",
-  "wikidata_dbpedia_joined_doc": "doc",
-  "db_endpoint": "http://dbpedia.org/sparql",
-  "wd_endpoint": "http://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql",
+  "es_url": "http://ckg06:9200",
+  "augmented_dwd_index": "wikidatadwd-augmented-01",
   "host": "0.0.0.0",
-  "port": 7805
+  "port": "1703"
 }
