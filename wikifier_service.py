@@ -20,9 +20,9 @@ def wikidata_wikifier():
 
 @app.route('/wikify', methods=['POST'])
 def wikify():
-    columns = request.form.get('columns', None)
+    columns = request.args.get('columns', None)
 
-    k = int(request.form.get('k', 1))
+    k = int(request.args.get('k', 1))
 
     df = pd.read_csv(request.files['file'], dtype=object)
 

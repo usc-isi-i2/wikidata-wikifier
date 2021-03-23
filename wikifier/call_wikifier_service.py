@@ -6,15 +6,12 @@ from io import StringIO
 
 def upload_files(file_path, url, column_name):
     file_name = os.path.basename(file_path)
-    payload = {
-        'columns': column_name,
-        'case_sensitive': 'false',
-        'k': 5
-    }
+
+    url += f'?k=5&columns={column_name}'
     files = {
         'file': (file_name, open(file_path, mode='rb'), 'application/octet-stream')
     }
-    resp = requests.post(url, data=payload, files=files)
+    resp = requests.post(url, files=files)
 
     s = str(resp.content, 'utf-8')
 
