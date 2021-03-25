@@ -8,13 +8,12 @@ from tl.features.smallest_qnode_number import smallest_qnode_number
 from tl.features.string_similarity import StringSimilarity
 from tl.features.feature_voting import feature_voting
 from tl.features.external_embedding import EmbeddingVector
-from tl.features.normalize_scores import normalize_scores
-from tl.candidate_ranking.combine_linearly import combine_linearly
 from tl.features.get_kg_links import get_kg_links
 from tl.evaluation.join import Join
 import tempfile
 from glob import glob
 import shutil
+import pickle
 
 
 class Wikifier(object):
@@ -39,7 +38,8 @@ class Wikifier(object):
                                               )
         self.exact_match = ExactMatches(es_url=self.es_url, es_index=self.augmented_dwd_index)
         self.join = Join()
-        self.auxiliary_fields = ['text_embedding', 'graph_embedding_complex']
+        self.auxiliary_fields = ['graph_embedding_complex']
+        self.model_path = config['pickled_model_path']
 
     def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1):
         temp_dir = tempfile.mkdtemp()
@@ -100,9 +100,19 @@ class Wikifier(object):
                                  df=features_df)
         features_df = jc_ss.get_similarity_score()
 
+        # 4. string similarity jaro winkler
+        if debug:
+            print('Step 8: Jaro Winkler Similarity Feature')
+        jw_ss = StringSimilarity(similarity_method=['jaro_winkler'],
+                                 ignore_case=True,
+                                 target_columns=['kg_labels', 'label_clean'],
+                                 output_column='jaro_winkler',
+                                 df=features_df)
+        features_df = jw_ss.get_similarity_score()
+
         # voting using the above features
         if debug:
-            print('Step 8: Voting Feature')
+            print('Step 9: Voting Feature')
         features_df = feature_voting(feature_col_names=['pagerank',
                                                         'smallest_qnode_number',
                                                         'monge_elkan',
@@ -110,14 +120,14 @@ class Wikifier(object):
 
         # compute embedding score using column vector strategy
         if debug:
-            print('Step 9: Score Using Embedding')
+            print('Step 10: Score Using Embedding')
         embedding_vector = EmbeddingVector(kwargs={
             'df': features_df,
             'column_vector_strategy': 'centroid-of-singletons',
             'output_column_name': 'graph-embedding-score',
             'embedding_url': f'{self.es_url}/{self.augmented_dwd_index}/',
             'input_column_name': 'kg_id',
-            'embedding_file': f'{temp_dir}/graph_embedding_complex.tsv',  # TODO fix this <-----
+            'embedding_file': f'{temp_dir}/graph_embedding_complex.tsv',
             'distance_function': 'cosine'
         })
 
@@ -126,41 +136,56 @@ class Wikifier(object):
         embedding_vector.add_score_column()
         features_df = embedding_vector.get_result_df()
 
-        # normalize scores
-        if debug:
-            print('Step 10: Normalize Scores')
-        normalized_df = normalize_scores(column='graph-embedding-score',
-                                         norm_type='zscore',
-                                         output_column='normalized-graph-embedding-score',
-                                         df=features_df)
+        # Additional features for Model Prediction
+        features_df = Wikifier.create_singleton_feature(features_df)
+        features_df['num_char'] = features_df['kg_labels'].apply(lambda x: len(x) if not (pd.isna(x)) else 0)
+        features_df['num_tokens'] = features_df['kg_labels'].apply(lambda x: len(x.split()) if not (pd.isna(x)) else 0)
+        features_df = Wikifier.generate_reciprocal_rank(features_df)
 
-        normalized_df = normalize_scores(column='pagerank',
-                                         norm_type='zscore',
-                                         output_column='normalized-pagerank',
-                                         df=normalized_df)
+        # Use pretrained model for prediction
+        features_list_model = ['pagerank', 'retrieval_score', 'monge_elkan',
+                               'des_cont_jaccard', 'jaro_winkler', 'graph-embedding-score',
+                               'singleton', 'num_char', 'num_tokens', 'reciprocal_rank']
 
-        normalized_df = normalize_scores(column='monge_elkan',
-                                         norm_type='zscore',
-                                         output_column='normalized-monge-elkan',
-                                         df=normalized_df)
+        model = pickle.load(open(self.model_path, 'rb'))
+        model_df = features_df[features_list_model]
+        predicted_score = model.predict(model_df)
+        features_df['model_prediction'] = predicted_score
 
         if debug:
-            print('Step 11: Combine Scores')
-        combined_score_df = combine_linearly(weights='normalized-graph-embedding-score:1.0,'
-                                                     'normalized-pagerank:1.0,'
-                                                     'normalized-monge-elkan:1.0',
-                                             output_column='ranking_score',
-                                             df=normalized_df)
-
-        if debug:
-            print('Step 12: Get top ranked result')
+            print('Step 11: Get top ranked result')
             print(f'k:{k}')
-        topk_df = get_kg_links('ranking_score', df=combined_score_df, label_column='label', top_k=k)
+        topk_df = get_kg_links('model_prediction', df=features_df, label_column='label', top_k=k)
 
         if debug:
-            print('Step 13: join with input file')
+            print('Step 12: join with input file')
         output_df = self.join.join(topk_df, i_df, 'ranking_score')
 
         # delete the temp directoru
         shutil.rmtree(temp_dir)
         return output_df
+
+    @staticmethod
+    def create_singleton_feature(df: pd.DataFrame):
+        d = df[df['method'] == 'exact-match'].groupby(['column', 'row'])[['kg_id']].count()
+        l = list(d[d['kg_id'] == 1].index)
+        singleton_feat = []
+        for i, row in df.iterrows():
+            col_num, row_num = row['column'], row['row']
+            if (col_num, row_num) in l:
+                singleton_feat.append(1)
+            else:
+                singleton_feat.append(0)
+        df['singleton'] = singleton_feat
+        return df
+
+    @staticmethod
+    def generate_reciprocal_rank(df: pd.DataFrame):
+        final_list = []
+        grouped_obj = df.groupby(['row', 'column'])
+        for cell in grouped_obj:
+            reciprocal_rank = list(1 / cell[1]['graph-embedding-score'].rank())
+            cell[1]['reciprocal_rank'] = reciprocal_rank
+            final_list.extend(cell[1].to_dict(orient='records'))
+        odf = pd.DataFrame(final_list)
+        return odf
