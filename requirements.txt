@@ -1,3 +1,3 @@
-git+https://github.com/usc-isi-i2/table-linker.git@development#egg=table-linker
+#git+https://github.com/usc-isi-i2/table-linker.git@development#egg=table-linker
 flask
 git+https://github.com/usc-isi-i2/rltk.git@master#egg=rltk

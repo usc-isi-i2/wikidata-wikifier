@@ -65,6 +65,8 @@ class Wikifier(object):
                                                                          auxiliary_fields=self.auxiliary_fields,
                                                                          auxiliary_folder=temp_dir
                                                                          )
+
+        plus_exact_match_candidates.to_csv('/tmp/candidates.tsv', sep='\t', index=False)
         # we have the text and graph embeddings for candidates, join the files and deduplicate them
         for aux_field in self.auxiliary_fields:
             aux_list = []

@@ -7,7 +7,8 @@ from io import StringIO
 def upload_files(file_path, url, column_name):
     file_name = os.path.basename(file_path)
 
-    url += f'?k=5&columns={column_name}'
+    url += f'?k=1&columns={column_name}'
+    print(url)
     files = {
         'file': (file_name, open(file_path, mode='rb'), 'application/octet-stream')
     }
@@ -25,5 +26,5 @@ def upload_files(file_path, url, column_name):
 
 file_path = '/Users/amandeep/Github/wikidata-wikifier/wikifier/sample_files/cricketers.csv'
 
-url = "http://localhost:1703/wikify"
+url = "https://dsbox02.isi.edu:8888/wikifier/wikify"
 print(upload_files(file_path, url, 'cricketers'))
