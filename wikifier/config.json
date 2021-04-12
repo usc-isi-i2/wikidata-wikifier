@@ -1,6 +1,6 @@
 {
   "es_url": "http://ckg07:9200",
-  "augmented_dwd_index": "wikidatadwd-augmented-02",
+  "augmented_dwd_index": "wikidatadwd-augmented",
   "pickled_model_path": "/Users/amandeep/Github/table-linker-pipelines/table-linker-full-pipeline/rf_tuned_ranking.pkl",
   "host": "0.0.0.0",
   "port": "1703"
