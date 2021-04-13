@@ -1,0 +1,9 @@
+version: "3"
+services:
+  kgtk-similarity:
+    image: wikidata-wikifier
+    container_name: wikidata-wikifier
+    command: sh -c 'python3 wikifier_service.py'
+    restart: always
+    ports:
+      - "1703:1703"
