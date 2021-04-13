@@ -38,3 +38,33 @@ curl -XPOST -F file=@wikifier/sample_files/cricketers.csv \
 "http://ckg07:1703/wikify?k=3&columns=cricketers" \
 -o wikifier/sample_files/cricketers_results.csv
 ```
+
+## Installation via Docker
+
+1. Clone the repository
+```
+git clone https://github.com/usc-isi-i2/wikidata-wikifier
+cd wikidata-wikifier
+```
+
+2. Update the following parameters in the `wikifier/config.json`
+- `es_url`: the elasticsearch server URL
+- `augmented_dwd_index`: elasticsearch index name
+- `pickled_model_path`: path to the trained model pickle file
+- `host`: "0.0.0.0"
+- `port`: "1703"
+
+3. Build the docker image
+
+```
+   docker build -t wikidata-wikifier
+```
+
+4. Run the docker container using `docker-compose`
+
+```
+   docker-compose up -d
+```
+
+5. The web service will be running at port `1703`
+
