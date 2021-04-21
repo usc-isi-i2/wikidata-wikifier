@@ -14,6 +14,7 @@ import tempfile
 from glob import glob
 import shutil
 import pickle
+import os
 
 
 class Wikifier(object):
@@ -22,8 +23,11 @@ class Wikifier(object):
         config = json.load(open('wikifier/config.json'))
 
         self.asciiiiii = set(string.printable)
-        self.es_url = config['es_url']
-        self.augmented_dwd_index = config['augmented_dwd_index']
+        _es_url = os.environ.get('WIKIFIER_ES_URL', None)
+        self.es_url = _es_url if _es_url else config['es_url']
+
+        _es_index = os.environ.get('WIKIFIER_ES_INDEX', None)
+        self.augmented_dwd_index = _es_index if _es_index else config['augmented_dwd_index']
 
         self.fuzzy_augmented = FuzzyAugmented(es_url=self.es_url,
                                               es_index=self.augmented_dwd_index,
@@ -39,7 +43,8 @@ class Wikifier(object):
         self.exact_match = ExactMatches(es_url=self.es_url, es_index=self.augmented_dwd_index)
         self.join = Join()
         self.auxiliary_fields = ['graph_embedding_complex']
-        self.model_path = config['pickled_model_path']
+        _model_path = os.environ.get('WIKIFIER_MODEL_PATH', None)
+        self.model_path = _model_path if _model_path else config['pickled_model_path']
 
     def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1):
         temp_dir = tempfile.mkdtemp()
