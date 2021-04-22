@@ -49,7 +49,8 @@ class Wikifier(object):
         self.auxiliary_fields = ['graph_embedding_complex', 'class_count', 'property_count']
         _model_path = os.environ.get('WIKIFIER_MODEL_PATH', None)
         self.model_path = _model_path if _model_path else config['model_path']
-        self.min_max_scaler_path = config["min_max_scaler_path"]
+        _min_max_scaler_path = os.environ.get('WIKIFIER_MIN_MAX_SCALER_PATH', None)
+        self.min_max_scaler_path = _min_max_scaler_path if _min_max_scaler_path else config["min_max_scaler_path"]
 
     def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1):
         temp_dir = tempfile.mkdtemp()

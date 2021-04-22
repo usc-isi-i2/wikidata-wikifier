@@ -10,4 +10,5 @@ services:
     environment:
       - WIKIFIER_ES_URL=http://localhost:9200
       - WIKIFIER_ES_INDEX=wikidatadwd-augmented-01
-      - WIKIFIER_MODEL_PATH=/api/wikidata-wikifier/wikifier/model/rf_tuned_ranking.pkl # path in the docker container
+      - WIKIFIER_MODEL_PATH=/api/wikidata-wikifier/wikifier/model/model_loss_0.10179922729730606_top1_0.905367231638418.pth # path in the docker container
+      - WIKIFIER_MIN_MAX_SCALER_PATH=/api/wikidata-wikifier/wikifier/model/normalization_factor_dwd_v2_tfidf.pkl
