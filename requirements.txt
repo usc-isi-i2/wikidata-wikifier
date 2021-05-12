@@ -1,4 +1,4 @@
 flask
 git+https://github.com/usc-isi-i2/rltk.git@master#egg=rltk
-git+https://github.com/usc-isi-i2/table-linker.git@development#egg=table-linker
+git+https://github.com/usc-isi-i2/table-linker.git@master#egg=table-linker
 torch
