@@ -1,24 +1,26 @@
-import json
-import string
-import pandas as pd
-from tl.candidate_generation.get_exact_matches import ExactMatches
-from tl.candidate_generation.get_fuzzy_augmented_matches import FuzzyAugmented
-from tl.preprocess.preprocess import canonicalize, clean
-from tl.features.smallest_qnode_number import smallest_qnode_number
-from tl.features.string_similarity import StringSimilarity
-from tl.features.feature_voting import feature_voting
-from tl.features.external_embedding import EmbeddingVector
-from tl.features.get_kg_links import get_kg_links
-from tl.evaluation.join import Join
-from tl.features.create_singleton_feature import create_singleton_feature
-from wikifier.contrastive_model import PairwiseNetwork
-import torch
-from tl.features.tfidf import TFIDF
-import tempfile
-from glob import glob
-import shutil
-import pickle
 import os
+import json
+import shutil
+import string
+import tempfile
+import pandas as pd
+from glob import glob
+from tl.features.tfidf import TFIDF
+from tl.evaluation.join import Join
+from tl.features import mosaic_features
+from tl.features.get_kg_links import get_kg_links
+from tl.candidate_ranking import predict_using_model
+from tl.features.align_page_rank import align_page_rank
+from tl.preprocess.preprocess import canonicalize, clean
+from tl.features.normalize_scores import normalize_scores
+from tl.features.external_embedding import EmbeddingVector
+from tl.features.string_similarity import StringSimilarity
+from tl.features.vote_by_classifier import vote_by_classifier
+from tl.candidate_generation.get_exact_matches import ExactMatches
+from tl.features.smallest_qnode_number import smallest_qnode_number
+from tl.features.generate_reciprocal_rank import generate_reciprocal_rank
+from tl.candidate_generation.get_fuzzy_augmented_matches import FuzzyAugmented
+from tl.features.create_singleton_feature import create_singleton_feature
 
 
 class Wikifier(object):
@@ -47,8 +49,14 @@ class Wikifier(object):
         self.exact_match = ExactMatches(es_url=self.es_url, es_index=self.augmented_dwd_index)
         self.join = Join()
         self.auxiliary_fields = ['graph_embedding_complex', 'class_count', 'property_count']
+
+        _classifier_model_path = os.environ.get('CLASSIFIER_MODEL_PATH', None)
+        self.classifier_model_path = _classifier_model_path if _classifier_model_path else config[
+            'classifier_model_path']
+
         _model_path = os.environ.get('WIKIFIER_MODEL_PATH', None)
         self.model_path = _model_path if _model_path else config['model_path']
+
         _min_max_scaler_path = os.environ.get('WIKIFIER_MIN_MAX_SCALER_PATH', None)
         self.min_max_scaler_path = _min_max_scaler_path if _min_max_scaler_path else config["min_max_scaler_path"]
 
@@ -78,13 +86,6 @@ class Wikifier(object):
                                                                          )
 
         plus_exact_match_candidates.to_csv('/tmp/candidates.tsv', sep='\t', index=False)
-        # we have the text and graph embeddings for candidates, join the files and deduplicate them
-        # for aux_field in self.auxiliary_fields:
-        #     aux_list = []
-        #     for f in glob(f'{temp_dir}/*{aux_field}.tsv'):
-        #         aux_list.append(pd.read_csv(f, sep='\t', dtype=object))
-        #     aux_df = pd.concat(aux_list).drop_duplicates(subset=['qnode']).rename(columns={aux_field: 'embedding'})
-        #     aux_df.to_csv(f'{temp_dir}/{aux_field}.tsv', sep='\t', index=False)
 
         column_rename_dict = {
             'graph_embedding_complex': 'embedding',
@@ -101,10 +102,10 @@ class Wikifier(object):
 
         # add features
 
-        # # 1. smallest qnode number
-        # if debug:
-        #     print('Step 5: Smallest Qnode Feature')
-        # features_df = smallest_qnode_number(plus_exact_match_candidates)
+        # align page rank
+        if debug:
+            print('Step 5: Align Page Rank')
+        features_df = align_page_rank(df=plus_exact_match_candidates)
 
         # 2. string similarity monge elkan
         if debug:
@@ -113,7 +114,7 @@ class Wikifier(object):
                                  ignore_case=True,
                                  output_column='monge_elkan',
                                  target_columns=['kg_labels', 'label_clean'],
-                                 df=plus_exact_match_candidates)
+                                 df=features_df)
         features_df = me_ss.get_similarity_score()
 
         # 3. string similarity jaccard
@@ -136,24 +137,55 @@ class Wikifier(object):
                                  df=features_df)
         features_df = jw_ss.get_similarity_score()
 
+        # levenshtein
+        if debug:
+            print('Step 9: Levenshtein Similarity Feature')
+        lv_ss = StringSimilarity(similarity_method=['levenshtein'],
+                                 ignore_case=True,
+                                 target_columns=['kg_labels', 'label_clean'],
+                                 output_column='levenshtein',
+                                 df=features_df)
+        features_df = lv_ss.get_similarity_score()
+
+        # normalize scores
+        if debug:
+            print('Step 10: Normalize Scores')
+        features_df = normalize_scores(column='des_cont_jaccard', df=features_df, norm_type='max_norm')
+
         # add singleton feature
+        if debug:
+            print('Step 11: Singleton Feature')
         features_df = create_singleton_feature(output_column='singleton', df=features_df)
 
-        # voting using the above features
-        # if debug:
-        #     print('Step 9: Voting Feature')
-        # features_df = feature_voting(feature_col_names=['pagerank',
-        #                                                 'smallest_qnode_number',
-        #                                                 'monge_elkan',
-        #                                                 'des_cont_jaccard'], df=features_df)
+        # smallest qnode number
+        if debug:
+            print('Step 12: Smallest Qnode Feature')
+        features_df = smallest_qnode_number(features_df)
 
         # compute embedding score using column vector strategy
+
+        # mosaic features
         if debug:
-            print('Step 10: Score Using Embedding')
+            print('Step 13: Mosaic Feature')
+        features_df = mosaic_features.mosaic_features('kg_labels',
+                                                      num_char=True,
+                                                      num_tokens=True,
+                                                      df=features_df)
+
+        # vote by classifier
+        if debug:
+            print('Step 14: Vote by classifier')
+        features_df = vote_by_classifier(self.classifier_model_path,
+                                         df=features_df,
+                                         prob_threshold=0.995)
+
+        if debug:
+            print('Step 15: Score Using Embedding')
         embedding_vector = EmbeddingVector(kwargs={
             'df': features_df,
-            'column_vector_strategy': 'centroid-of-singletons',
-            'output_column_name': 'graph-embedding-score',
+            'column_vector_strategy': 'centroid-of-lof',
+            'lof_strategy': 'ems-mv',
+            'output_column_name': 'lof-graph-embedding-score',
             'embedding_url': f'{self.es_url}/{self.augmented_dwd_index}/',
             'input_column_name': 'kg_id',
             'embedding_file': f'{temp_dir}/graph_embedding_complex.tsv',
@@ -165,86 +197,51 @@ class Wikifier(object):
         embedding_vector.add_score_column()
         features_df = embedding_vector.get_result_df()
 
-        # Additional features for Model Prediction
-
-        features_df['num_char'] = features_df['kg_labels'].apply(lambda x: len(x) if not (pd.isna(x)) else 0)
-        features_df['num_tokens'] = features_df['kg_labels'].apply(lambda x: len(x.split()) if not (pd.isna(x)) else 0)
-        features_df = Wikifier.generate_reciprocal_rank(features_df)
+        # generate reciprocal rank feature
+        if debug:
+            print('Step 16: Generate Reciprocal Rank')
+        features_df = generate_reciprocal_rank('lof-graph-embedding-score',
+                                               'lof-reciprocal-rank',
+                                               df=features_df)
 
         # add class count tfidf feature
-        ctfidf = TFIDF(output_column_name='class_count_tf_idf_score',
+        if debug:
+            print('Step 17: Class TF IDF')
+        ctfidf = TFIDF(output_column_name='lof_class_count_tf_idf_score',
                        feature_file=f'{temp_dir}/class_count.tsv',
                        feature_name='class_count',
                        total_docs=42123553,
-                       singleton_column='singleton',
+                       singleton_column='is_lof',
                        df=features_df)
 
         features_df = ctfidf.compute_tfidf()
 
         # add property count tfidf feature
-        ptfidf = TFIDF(output_column_name='property_count_tf_idf_score',
+        if debug:
+            print('Step 18: Property TF IDF')
+        ptfidf = TFIDF(output_column_name='lof_property_count_tf_idf_score',
                        feature_file=f'{temp_dir}/property_count.tsv',
                        feature_name='property_count',
                        total_docs=42123553,
-                       singleton_column='singleton',
+                       singleton_column='is_lof',
                        df=features_df)
 
         features_df = ptfidf.compute_tfidf()
 
-        # Use pretrained model for prediction
-        normalize_features = ['pagerank', 'retrieval_score', 'monge_elkan', 'des_cont_jaccard',
-                              'jaro_winkler', 'graph-embedding-score', 'singleton',
-                              'num_char', 'num_tokens', 'reciprocal_rank',
-                              'class_count_tf_idf_score', 'property_count_tf_idf_score']
-
-        # model = pickle.load(open(self.model_path, 'rb'))
-        # model_df = features_df[features_list_model]
-        # predicted_score = model.predict(model_df)
-        # features_df['model_prediction'] = predicted_score
-
-        model = PairwiseNetwork(12)
-        model.load_state_dict(torch.load(self.model_path))
-        scaler = pickle.load(open(self.min_max_scaler_path, 'rb'))
-
-        grouped_obj = features_df.groupby(['row', 'column'])
-        new_df_list = []
-        pred = []
-        for cell in grouped_obj:
-            cell[1][normalize_features] = scaler.transform(cell[1][normalize_features])
-            sorted_df = cell[1].sort_values('graph-embedding-score', ascending=False)[:64]
-            sorted_df_features = sorted_df[normalize_features]
-            new_df_list.append(sorted_df)
-            arr = sorted_df_features.to_numpy()
-            test_inp = []
-            for a in arr:
-                test_inp.append(a)
-            test_tensor = torch.tensor(test_inp).float()
-            scores = model.predict(test_tensor)
-            pred.extend(torch.squeeze(scores).tolist())
-        model_pred_df = pd.concat(new_df_list)
-        model_pred_df['siamese_pred'] = pred
-        # test_df.to_csv(output_table, index=False)
+        model_pred_df = predict_using_model.predict('siamese_prediction',
+                                                    ranking_model=self.model_path,
+                                                    min_max_scaler_path=self.min_max_scaler_path,
+                                                    df=features_df)
 
         if debug:
-            print('Step 11: Get top ranked result')
+            print('Step 19: Get top ranked result')
             print(f'k:{k}')
-        topk_df = get_kg_links('siamese_pred', df=model_pred_df, label_column='label', top_k=k)
+        topk_df = get_kg_links('siamese_prediction', df=model_pred_df, label_column='label', top_k=k)
 
         if debug:
-            print('Step 12: join with input file')
+            print('Step 20: join with input file')
         output_df = self.join.join(topk_df, i_df, 'ranking_score')
 
         # delete the temp directoru
         shutil.rmtree(temp_dir)
         return output_df
-
-    @staticmethod
-    def generate_reciprocal_rank(df: pd.DataFrame):
-        final_list = []
-        grouped_obj = df.groupby(['row', 'column'])
-        for cell in grouped_obj:
-            reciprocal_rank = list(1 / cell[1]['graph-embedding-score'].rank())
-            cell[1]['reciprocal_rank'] = reciprocal_rank
-            final_list.extend(cell[1].to_dict(orient='records'))
-        odf = pd.DataFrame(final_list)
-        return odf

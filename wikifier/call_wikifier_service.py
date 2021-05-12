@@ -28,4 +28,5 @@ def upload_files(file_path, url, column_name):
 file_path = '/Users/amandeep/Github/wikidata-wikifier/wikifier/sample_files/cricketers.csv'
 
 url = "http://localhost:1703/wikify"
+# url = "https://dsbox02.isi.edu:8888/wikifier/wikify"
 print(upload_files(file_path, url, 'cricketers'))
