@@ -1,3 +1,4 @@
 flask
+git+https://github.com/usc-isi-i2/rltk.git@fix-tokenizer#egg=rltk
 git+https://github.com/usc-isi-i2/table-linker.git@master#egg=table-linker
 torch
