@@ -10,6 +10,6 @@ services:
     environment:
       - WIKIFIER_ES_URL=http://localhost:9200
       - WIKIFIER_ES_INDEX=wikidatadwd-augmented
-      - WIKIFIER_MODEL_PATH=/api/wikidata-wikifier/wikifier/model/epoch_2_loss_0.09150885790586472_top1_0.9067796610169492.pth # path in the docker container
-      - WIKIFIER_MIN_MAX_SCALER_PATH=/api/wikidata-wikifier/wikifier/model/normalization_factor.pkl
-      - CLASSIFIER_MODEL_PATH=/api/wikidata-wikifier/wikifier/model/weighted_lr.pkl
+      - WIKIFIER_MODEL_PATH=/api/wikifier/model/epoch_2_loss_0.09150885790586472_top1_0.9067796610169492.pth # path in the docker container
+      - WIKIFIER_MIN_MAX_SCALER_PATH=/api/wikifier/model/normalization_factor.pkl
+      - CLASSIFIER_MODEL_PATH=/api/wikifier/model/weighted_lr.pkl
