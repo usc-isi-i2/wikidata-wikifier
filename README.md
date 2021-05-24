@@ -35,7 +35,7 @@ Example python code to call the wikifier is available at `wikifier/call_wikifier
 Use curl to call the wikifier, input file is `wikifier/sample_files/cricketers.csv`, output file: `wikifier/sample_files/cricketers_results.csv` and get 3 results
 ```
 curl -XPOST -F file=@wikifier/sample_files/cricketers.csv \
-"https://dsbox02.isi.edu:8888/wikifier/wikify?k=3&columns=cricketers" \
+"https://ckg07.isi.edu/wikifier/wikify?k=3&columns=cricketers" \
 -o wikifier/sample_files/cricketers_results.csv
 ```
 
