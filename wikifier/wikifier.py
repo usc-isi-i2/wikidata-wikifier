@@ -192,10 +192,14 @@ class Wikifier(object):
             'distance_function': 'cosine'
         })
 
-        embedding_vector.get_vectors()
-        embedding_vector.process_vectors()
-        embedding_vector.add_score_column()
-        features_df = embedding_vector.get_result_df()
+        try:
+            embedding_vector.get_vectors()
+            embedding_vector.process_vectors()
+            embedding_vector.add_score_column()
+            features_df = embedding_vector.get_result_df()
+        except Exception as e:
+            print('Exception: {}'.format(e))
+            features_df['lof-graph-embedding-score'] = 0.0
 
         # generate reciprocal rank feature
         if debug:
