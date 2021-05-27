@@ -85,8 +85,6 @@ class Wikifier(object):
                                                                          auxiliary_folder=temp_dir
                                                                          )
 
-        plus_exact_match_candidates.to_csv('/tmp/candidates.tsv', sep='\t', index=False)
-
         column_rename_dict = {
             'graph_embedding_complex': 'embedding',
             'class_count': 'class_count',

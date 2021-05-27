@@ -20,13 +20,14 @@ def upload_files(file_path, url, column_name):
     data = StringIO(s)
 
     df = pd.read_csv(data, header=None)
-    df.to_csv('sample_files/cricketers_results.csv'.format(file_name[:-4]), index=False, header=False)
+    df.to_csv('sample_files/playlist_results.csv'.format(file_name[:-4]), index=False, header=False)
     # print(resp.text)
     return resp.status_code
 
 
-file_path = '/Users/amandeep/Github/wikidata-wikifier/wikifier/sample_files/cricketers.csv'
+file_path = '/Users/amandeep/Github/wikidata-wikifier/wikifier/sample_files/playlists.csv'
 
 url = "http://localhost:1703/wikify"
 # url = "https://dsbox02.isi.edu:8888/wikifier/wikify"
-print(upload_files(file_path, url, 'cricketers'))
+# url = "https://ckg07.isi.edu/wikifier/wikify"
+print(upload_files(file_path, url, 'Artist'))
