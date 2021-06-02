@@ -242,7 +242,7 @@ class Wikifier(object):
 
         if debug:
             print('Step 20: join with input file')
-        output_df = self.join.join(topk_df, i_df, 'ranking_score')
+        output_df = self.join.join(topk_df, i_df, 'ranking_score', extra_info=True)
 
         # delete the temp directoru
         shutil.rmtree(temp_dir)
