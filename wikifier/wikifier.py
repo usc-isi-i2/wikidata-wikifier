@@ -34,12 +34,14 @@ class Wikifier(object):
         _min_max_scaler_path = os.environ.get('WIKIFIER_MIN_MAX_SCALER_PATH', None)
         self.min_max_scaler_path = _min_max_scaler_path if _min_max_scaler_path else config["min_max_scaler_path"]
 
-    def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1):
+    def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1) -> pd.DataFrame:
         temp_dir = tempfile.mkdtemp()
+
         pipeline_temp_dir = f"{temp_dir}/temp"
         input_file_path = f"{temp_dir}/input.csv"
         candidate_file_path = f"{temp_dir}/candidates.csv"
         output_file = f"{temp_dir}/output.csv"
+
         Path(pipeline_temp_dir).mkdir(parents=True, exist_ok=True)
 
         graph_embedding_complex_file = f"{pipeline_temp_dir}/graph_embedding_complex.tsv"
@@ -62,7 +64,8 @@ class Wikifier(object):
                                             --auxiliary-fields {self.auxiliary_fields} \
                                             --auxiliary-folder {pipeline_temp_dir} > {candidate_file_path}"
         cc_output = subprocess.getoutput(candidate_generation_command)
-        print(cc_output)
+        if debug:
+            print(cc_output)
 
         column_rename_dict = {
             'graph_embedding_complex': 'embedding',
@@ -116,8 +119,9 @@ class Wikifier(object):
                                         > {output_file}"
 
         fc_output = subprocess.getoutput(feature_computation_command)
-        print(fc_output)
-        
+        if debug:
+            print(fc_output)
+
         o_df = pd.read_csv(output_file)
         shutil.rmtree(temp_dir)
         return o_df
