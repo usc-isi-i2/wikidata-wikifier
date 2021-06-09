@@ -3,11 +3,10 @@ import json
 import shutil
 import string
 import tempfile
-import pandas as pd
-from pathlib import Path
-from glob import glob
-import numpy as np
 import subprocess
+import pandas as pd
+from glob import glob
+from pathlib import Path
 
 
 class Wikifier(object):
