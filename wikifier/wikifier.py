@@ -103,12 +103,12 @@ class Wikifier(object):
                                         / compute-tf-idf \
                                         --feature-file {class_count_file} \
                                         --feature-name class_count \
-                                        --singleton-column is_lof \
+                                        --singleton-column singleton \
                                         -o lof_class_count_tf_idf_score \
                                         / compute-tf-idf \
                                         --feature-file {property_count_file} \
                                         --feature-name property_count \
-                                        --singleton-column is_lof \
+                                        --singleton-column singleton \
                                         -o lof_property_count_tf_idf_score \
                                         / predict-using-model -o siamese_prediction \
                                         --ranking_model {self.model_path} \
