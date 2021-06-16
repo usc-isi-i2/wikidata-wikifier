@@ -32,6 +32,10 @@ class Wikifier(object):
 
         _min_max_scaler_path = os.environ.get('WIKIFIER_MIN_MAX_SCALER_PATH', None)
         self.min_max_scaler_path = _min_max_scaler_path if _min_max_scaler_path else config["min_max_scaler_path"]
+        self.features = ['pagerank', 'retrieval_score', 'monge_elkan', 'monge_elkan_aliases', 'des_cont_jaccard',
+                         'jaro_winkler', 'levenshtein', 'singleton', 'num_char', 'num_tokens',
+                         'lof_class_count_tf_idf_score', 'lof_property_count_tf_idf_score',
+                         'lof-graph-embedding-score', 'lof-reciprocal-rank']
 
     def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1) -> pd.DataFrame:
         temp_dir = tempfile.mkdtemp()
@@ -80,8 +84,10 @@ class Wikifier(object):
             aux_df.to_csv(f'{pipeline_temp_dir}/{field}.tsv', sep='\t', index=False)
 
         # feature computation
+        features_str = ",".join(self.features)
         feature_computation_command = f"tl align-page-rank {candidate_file_path} \
                                         / string-similarity -i --method symmetric_monge_elkan:tokenizer=word -o monge_elkan \
+                                        / string-similarity -i --method symmetric_monge_elkan:tokenizer=word -c label_clean kg_aliases -o monge_elkan_aliases \
                                         / string-similarity -i --method jaro_winkler -o jaro_winkler \
                                         / string-similarity -i --method levenshtein -o levenshtein \
                                         / string-similarity -i --method jaccard:tokenizer=word -c kg_descriptions context -o des_cont_jaccard \
@@ -111,8 +117,9 @@ class Wikifier(object):
                                         --singleton-column singleton \
                                         -o lof_property_count_tf_idf_score \
                                         / predict-using-model -o siamese_prediction \
-                                        --ranking_model {self.model_path} \
-                                        --normalization_factor {self.min_max_scaler_path} \
+                                        --ranking-model {self.model_path} \
+                                        --features {features_str} \
+                                        --normalization-factor {self.min_max_scaler_path} \
                                         / get-kg-links -c siamese_prediction -k {k} \
                                         / join -c ranking_score -f {input_file_path} --extra-info \
                                         > {output_file}"
