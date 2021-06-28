@@ -39,13 +39,15 @@ class Wikifier(object):
         self.classifier_features = ["aligned_pagerank", "smallest_qnode_number", "monge_elkan",
                                     "des_cont_jaccard_normalized"]
 
-    def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1) -> pd.DataFrame:
+    def wikify(self, i_df: pd.DataFrame, columns: str, output_path: str, debug: bool = False, k: int = 1,
+               colorized_output: bool = False) -> str:
         temp_dir = tempfile.mkdtemp()
 
         pipeline_temp_dir = f"{temp_dir}/temp"
         input_file_path = f"{temp_dir}/input.csv"
         candidate_file_path = f"{temp_dir}/candidates.csv"
-        output_file = f"{temp_dir}/output.csv"
+        intermediate_file = f"{temp_dir}/intermediate.csv"
+        output_file = f"{temp_dir}/colorized.xlsx" if colorized_output else f"{temp_dir}/output.csv"
 
         Path(pipeline_temp_dir).mkdir(parents=True, exist_ok=True)
 
@@ -129,14 +131,26 @@ class Wikifier(object):
                                         --ranking-model {self.model_path} \
                                         --features {features_str} \
                                         --normalization-factor {self.min_max_scaler_path} \
-                                        / get-kg-links -c siamese_prediction -k {k} \
-                                        / join -c ranking_score -f {input_file_path} --extra-info \
-                                        > {output_file}"
+                                        > {intermediate_file}"
 
         fc_output = subprocess.getoutput(feature_computation_command)
         if debug:
             print(fc_output)
 
-        o_df = pd.read_csv(output_file)
+        if colorized_output:
+            output_command = f"tl get-kg-links -c siamese_prediction -k {k}  \
+                             --k-rows  {intermediate_file}\
+                             / add-color -c siamese_prediction -k {k} \
+                             --output {output_file}"
+        else:
+            output_command = f"tl get-kg-links -c siamese_prediction -k {k} {intermediate_file} \
+                               / join -c ranking_score -f {input_file_path} --extra-info \
+                               > {output_file}"
+        oo_output = subprocess.getoutput(output_command)
+        print(oo_output)
+
+        copy_command = f"cp {output_file} {output_path}"
+        subprocess.getoutput(copy_command)
+
         shutil.rmtree(temp_dir)
-        return o_df
+        return output_file.split("/")[-1]
