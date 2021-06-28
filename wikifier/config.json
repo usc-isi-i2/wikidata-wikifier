@@ -2,7 +2,7 @@
   "es_url": "http://ckg07:9200",
   "augmented_dwd_index": "wikidatadwd-augmented",
   "classifier_model_path": "/Users/amandeep/Github/wikidata-wikifier/wikifier/model/weighted_lr.pkl",
-  "model_path": "/Users/amandeep/Github/wikidata-wikifier/wikifier/model/epoch_1_loss_0.09571801126003265_top1_0.8766519823788547.pth",
+  "model_path": "/Users/amandeep/Github/wikidata-wikifier/wikifier/model/epoch_5_loss_0.09882864356040955_top1_0.8968926553672316.pth",
   "min_max_scaler_path": "/Users/amandeep/Github/wikidata-wikifier/wikifier/model/normalization_factor.pkl",
   "host": "0.0.0.0",
   "port": "1703"
