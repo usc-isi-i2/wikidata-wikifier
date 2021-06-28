@@ -6,6 +6,7 @@ The following input parameters are supported,
 
 - `columns`: a comma separated string of column names to be wikified
 - `k`: top k results for each cell in the input columns
+- `colorized`: {true|false}, if true, returns an excel file with topk results in shaded coloring. Default `false`
 
 
 ## Install Requirements and run the service
@@ -32,11 +33,18 @@ The service is now running on `http://localhost:1703/wikify`
 
 Example python code to call the wikifier is available at `wikifier/call_wikifier_service.py`
 
-Use curl to call the wikifier, input file is `wikifier/sample_files/cricketers.csv`, output file: `wikifier/sample_files/cricketers_results.csv` and get 3 results
+### Use curl to call the wikifier, input file is `wikifier/sample_files/cricketers.csv`, output file: `wikifier/sample_files/cricketers_results.csv` and get 3 results
 ```
 curl -XPOST -F file=@wikifier/sample_files/cricketers.csv \
 "https://ckg07.isi.edu/wikifier/wikify?k=3&columns=cricketers" \
 -o wikifier/sample_files/cricketers_results.csv
+```
+
+### Use curl to call the wikifier, returning colorized excel file,
+```
+curl -XPOST -F file=@wikifier/sample_files/cricketers.csv \
+"https://ckg07.isi.edu/wikifier/wikify?k=3&columns=cricketers&colorized=true" \
+-o wikifier/sample_files/cricketers_results_colorized.xlsx
 ```
 
 ## Installation via Docker
