@@ -21,7 +21,7 @@ class Wikifier(object):
         _es_index = os.environ.get('WIKIFIER_ES_INDEX', None)
         self.augmented_dwd_index = _es_index if _es_index else config['augmented_dwd_index']
 
-        self.auxiliary_fields = "graph_embedding_complex,class_count,property_count"
+        self.auxiliary_fields = "graph_embedding_complex,class_count,property_count,context"
 
         _classifier_model_path = os.environ.get('CLASSIFIER_MODEL_PATH', None)
         self.classifier_model_path = _classifier_model_path if _classifier_model_path else config[
@@ -35,7 +35,9 @@ class Wikifier(object):
         self.features = ['pagerank', 'retrieval_score', 'monge_elkan', 'monge_elkan_aliases', 'des_cont_jaccard',
                          'jaro_winkler', 'levenshtein', 'singleton', 'num_char', 'num_tokens',
                          'lof_class_count_tf_idf_score', 'lof_property_count_tf_idf_score',
-                         'lof-graph-embedding-score', 'lof-reciprocal-rank']
+                         'lof-graph-embedding-score', 'lof-reciprocal-rank', 'context_score']
+        self.classifier_features = ["aligned_pagerank", "smallest_qnode_number", "monge_elkan",
+                                    "des_cont_jaccard_normalized"]
 
     def wikify(self, i_df: pd.DataFrame, columns: str, debug: bool = False, k: int = 1) -> pd.DataFrame:
         temp_dir = tempfile.mkdtemp()
@@ -50,6 +52,7 @@ class Wikifier(object):
         graph_embedding_complex_file = f"{pipeline_temp_dir}/graph_embedding_complex.tsv"
         class_count_file = f"{pipeline_temp_dir}/class_count.tsv"
         property_count_file = f"{pipeline_temp_dir}/property_count.tsv"
+        context_file = f"{pipeline_temp_dir}/context.tsv"
 
         i_df.to_csv(input_file_path, index=False)
 
@@ -73,7 +76,8 @@ class Wikifier(object):
         column_rename_dict = {
             'graph_embedding_complex': 'embedding',
             'class_count': 'class_count',
-            'property_count': 'property_count'
+            'property_count': 'property_count',
+            'context': 'context'
         }
         for field in self.auxiliary_fields.split(','):
             aux_list = []
@@ -97,6 +101,7 @@ class Wikifier(object):
                                         / vote-by-classifier  \
                                         --prob-threshold 0.995 \
                                         --model {self.classifier_model_path} \
+                                        --features {','.join(self.classifier_features)} \
                                         / score-using-embedding \
                                         --column-vector-strategy centroid-of-lof \
                                         --lof-strategy ems-mv \
@@ -109,13 +114,17 @@ class Wikifier(object):
                                         / compute-tf-idf \
                                         --feature-file {class_count_file} \
                                         --feature-name class_count \
-                                        --singleton-column singleton \
+                                        --singleton-column is_lof \
                                         -o lof_class_count_tf_idf_score \
                                         / compute-tf-idf \
                                         --feature-file {property_count_file} \
                                         --feature-name property_count \
-                                        --singleton-column singleton \
+                                        --singleton-column is_lof \
                                         -o lof_property_count_tf_idf_score \
+                                        / context-match \
+                                        --context-file {context_file}  \
+                                        -o context_score \
+                                        --debug \
                                         / predict-using-model -o siamese_prediction \
                                         --ranking-model {self.model_path} \
                                         --features {features_str} \
