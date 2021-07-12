@@ -23,6 +23,7 @@ def wikify():
     columns = request.args.get('columns', None)
 
     k = int(request.args.get('k', 1))
+    colorized_output = request.args.get('colorized', 'false').lower() == 'true'
 
     df = pd.read_csv(request.files['file'], dtype=object)
 
@@ -32,9 +33,9 @@ def wikify():
     _path = 'user_files/{}_{}'.format(columns, _uuid_hex)
     pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
 
-    r_df = wikifier.wikify(df, columns, debug=True, k=k)
-    r_df.to_csv('{}/results.csv'.format(_path), index=False)
-    return send_from_directory(_path, 'results.csv')
+    output_file = wikifier.wikify(df, columns, output_path=_path, debug=True, k=k, colorized_output=colorized_output)
+
+    return send_from_directory(_path, output_file)
 
 
 if __name__ == '__main__':
