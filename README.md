@@ -17,7 +17,7 @@ python3 -m venv wiki_env
 source wiki_env/bin/activate
 pip install -r requirements.txt
 
-./run_wikifier_service.sh
+python wikifier_service.py
 ```
 You should see output similar to this
 ```
