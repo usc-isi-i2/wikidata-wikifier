@@ -64,7 +64,7 @@ class Wikifier(object):
         property_count_file = f"{pipeline_temp_dir}/property_count.tsv"
         context_file = f"{pipeline_temp_dir}/context.tsv"
 
-        if self.custom_context_path == '':
+        if self.custom_context_path == '' or (not os.path.exists(self.custom_context_path)):
             high_precision = False
 
         i_df.to_csv(input_file_path, index=False)
