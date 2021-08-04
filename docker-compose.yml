@@ -13,3 +13,6 @@ services:
       - WIKIFIER_MODEL_PATH=/api/wikifier/model/epoch_5_loss_0.09882864356040955_top1_0.8968926553672316.pth # path in the docker container
       - WIKIFIER_MIN_MAX_SCALER_PATH=/api/wikifier/model/normalization_factor.pkl
       - CLASSIFIER_MODEL_PATH=/api/wikifier/model/weighted_lr.pkl
+      - CUSTOM_CONTEXT_PATH=/data/coauthors.context.tsv.gz
+#    volumes:
+#      - <LOCAL_PATH>/coauthors.context.tsv.gz:/data/coauthors.context.tsv.gz
