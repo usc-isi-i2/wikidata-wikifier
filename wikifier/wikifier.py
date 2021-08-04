@@ -32,7 +32,7 @@ class Wikifier(object):
 
         _min_max_scaler_path = os.environ.get('WIKIFIER_MIN_MAX_SCALER_PATH', None)
 
-        _custom_context_path = os.environ.get('CUSTOM_CONTEXT_PATH', None)
+        _custom_context_path = os.environ.get('CUSTOM_CONTEXT_PATH', '')
         self.custom_context_path = _custom_context_path if _custom_context_path else config['custom_context_path']
         self.min_max_scaler_path = _min_max_scaler_path if _min_max_scaler_path else config["min_max_scaler_path"]
         self.features = ['pagerank', 'retrieval_score', 'monge_elkan', 'monge_elkan_aliases', 'des_cont_jaccard',
@@ -63,6 +63,9 @@ class Wikifier(object):
         class_count_file = f"{pipeline_temp_dir}/class_count.tsv"
         property_count_file = f"{pipeline_temp_dir}/property_count.tsv"
         context_file = f"{pipeline_temp_dir}/context.tsv"
+
+        if self.custom_context_path == '':
+            high_precision = False
 
         i_df.to_csv(input_file_path, index=False)
 
