@@ -3,7 +3,6 @@
   "augmented_dwd_index": "wikidatadwd-augmented",
   "model_path": "/Users/amandeep/Github/wikidata-wikifier/wikifier/model/epoch_17_loss_0.014523069374263287_top1_0.9675043327556326.pth",
   "min_max_scaler_path": "/Users/amandeep/Github/wikidata-wikifier/wikifier/model/tl_pipeline_normalization_factor.pkl",
-  "custom_context_path": "/Users/amandeep/Github/wikidata-wikifier/wikifier/sample_files/coauthors.context.tsv.gz",
   "pseudo_gt_model": "/Users/amandeep/Github/wikidata-wikifier/wikifier/model/epoch_1_loss_0.534353494644165_top1_0.7883487007544007.pth",
   "pseudo_gt_min_max_scaler_path": "/Users/amandeep/Github/wikidata-wikifier/wikifier/model/normalization_factor.pkl",
   "host": "0.0.0.0",
