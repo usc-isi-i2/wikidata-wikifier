@@ -96,7 +96,9 @@ Download OpenRefine from
 https://openrefine.org/download.html
 
 Or Install Via homebrew
+```
 brew install openrefine
+```
 
 
 ## Usage of Reconciliation service using table-linker
