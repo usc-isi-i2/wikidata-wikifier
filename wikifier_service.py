@@ -15,28 +15,11 @@ wikifier = Wikifier()
 config = json.load(open('wikifier/config.json'))
 
 
-
-
 @app.route('/rec', methods=['POST','GET'])
 def rec():
-   
-    #print(request.headers)
-    #print(request.data)
-    #print(request.form)
-    #print(request.args)
-    #print(request.url)
-    #print(request.__dict__)
-    #print(request.referrer)
-    #if flask.request.method == 'POST':
-    #    print(flask.request)
-
-
     #deal with callback requests for general info
 
     query = request.form.get('queries')
-
-    if query == None:
-         query = request.args.get('queries')
     
     if query == None:
         callback = request.args.get('callback', False)
@@ -64,16 +47,12 @@ def rec():
 
         df = pd.DataFrame.from_dict(query, orient='index')
 
-
-        #df.to_csv('./test.csv')
-
         label = []
         for key in query.keys():
             label.append(key)
         df = df.reset_index(drop = True)
         columns = 'query'
 
-        print(df)
 
         if (len(df)) > 0 and 'properties' in df.columns:
             for ele in (df['properties'][0]):
@@ -117,10 +96,8 @@ def rec():
         
         callback = request.args.get('callback', False)
         if callback:
-            print(str(callback) + '(' + str(output) + ')')
             return str(callback) + '(' + str(output) + ')'
         else:
-            print(output)
             return json.dumps(output)
 
 
