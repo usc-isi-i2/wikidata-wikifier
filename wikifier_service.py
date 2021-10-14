@@ -85,7 +85,7 @@ def rec():
             output[label[df['row'][i]]]['result'].append({
                 "id": df['kg_id'][i],
                 "name": df['kg_labels'][i],
-                "type": [{"id": df['top5_class_count'][i].split(':')[0],
+                "type": [{"id": str(df['top5_class_count'][i]).split(':')[0],
                           "name":"Qnode"}],
                 "score": df['siamese_prediction'][i],
                 "match": (float(df['siamese_prediction'][i]) > 0.95 and
