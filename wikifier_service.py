@@ -120,12 +120,10 @@ def wikify():
     _path = 'user_files/{}_{}'.format(columns, _uuid_hex)
     pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
 
-
     output_file = wikifier.wikify(df, columns, output_path=_path,
                                   debug=True, k=k,
                                   colorized_output=colorized_output)
     return send_from_directory(_path, output_file)
-
 
 if __name__ == '__main__':
     app.run(threaded=True, host=config['host'], port=config['port'])
