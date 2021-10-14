@@ -23,24 +23,27 @@ class Wikifier(object):
 
         self.auxiliary_fields = "graph_embedding_complex,class_count,property_count,context"
 
-        _classifier_model_path = os.environ.get('CLASSIFIER_MODEL_PATH', None)
-        self.classifier_model_path = _classifier_model_path if _classifier_model_path else config[
-            'classifier_model_path']
-
         _model_path = os.environ.get('WIKIFIER_MODEL_PATH', None)
         self.model_path = _model_path if _model_path else config['model_path']
 
         _min_max_scaler_path = os.environ.get('WIKIFIER_MIN_MAX_SCALER_PATH', None)
 
-        _custom_context_path = os.environ.get('CUSTOM_CONTEXT_PATH', '')
-        self.custom_context_path = _custom_context_path if _custom_context_path else config['custom_context_path']
         self.min_max_scaler_path = _min_max_scaler_path if _min_max_scaler_path else config["min_max_scaler_path"]
-        self.features = ['pagerank', 'retrieval_score', 'monge_elkan', 'monge_elkan_aliases', 'des_cont_jaccard',
-                         'jaro_winkler', 'levenshtein', 'singleton', 'num_char', 'num_tokens',
-                         'lof_class_count_tf_idf_score', 'lof_property_count_tf_idf_score',
-                         'lof-graph-embedding-score', 'lof-reciprocal-rank', 'context_score']
-        self.classifier_features = ["aligned_pagerank", "smallest_qnode_number", "monge_elkan",
-                                    "des_cont_jaccard_normalized"]
+        self.features = ["monge_elkan", "monge_elkan_aliases", "jaro_winkler",
+                         "levenshtein", "singleton", "context_score_3", "pgt_centroid_score",
+                         "pgt_class_count_tf_idf_score",
+                         "pgt_property_count_tf_idf_score", "num_occurences"]
+
+        self.pseudo_gt_features = ["monge_elkan", "monge_elkan_aliases", "jaro_winkler",
+                                   "levenshtein", "singleton", "pgr_rts", "context_score",
+                                   "smc_class_score", "smc_property_score"]
+        _pseudo_gt_model = os.environ.get('PSEUDO_GT_MODEL', None)
+        self.pseudo_gt_model = _pseudo_gt_model if _pseudo_gt_model else config['pseudo_gt_model']
+
+        _pseudo_g_min_max_scaler_path = os.environ.get('PSEUDO_GT_MIN_MAX_SCALER_PATH', None)
+
+        self.pseudo_gt_min_max_scaler_path = _pseudo_g_min_max_scaler_path if _pseudo_g_min_max_scaler_path else config[
+            'pseudo_gt_min_max_scaler_path']
 
     def wikify(self,
                i_df: pd.DataFrame,
@@ -48,9 +51,12 @@ class Wikifier(object):
                output_path: str,
                debug: bool = False,
                k: int = 1,
-               colorized_output: bool = False,
-               high_precision: bool = False) -> str:
+               colorized_output: bool = False) -> str:
         temp_dir = tempfile.mkdtemp()
+        
+        aux_path = f"{temp_dir}/aux_files"
+        Path(aux_path).mkdir(parents=True, exist_ok=True)
+
         pipeline_temp_dir = f"{temp_dir}/temp"
         input_file_path = f"{temp_dir}/input.csv"
         candidate_file_path = f"{temp_dir}/candidates.csv"
@@ -59,13 +65,11 @@ class Wikifier(object):
 
         Path(pipeline_temp_dir).mkdir(parents=True, exist_ok=True)
 
-        graph_embedding_complex_file = f"{pipeline_temp_dir}/graph_embedding_complex.tsv"
-        class_count_file = f"{pipeline_temp_dir}/class_count.tsv"
-        property_count_file = f"{pipeline_temp_dir}/property_count.tsv"
-        context_file = f"{pipeline_temp_dir}/context.tsv"
-
-        if self.custom_context_path == '' or (not os.path.exists(self.custom_context_path)):
-            high_precision = False
+        graph_embedding_complex_file = f"{aux_path}/graph_embedding_complex.tsv"
+        class_count_file = f"{aux_path}/class_count.tsv"
+        property_count_file = f"{aux_path}/property_count.tsv"
+        context_file = f"{aux_path}/context.jl"
+        context_property_file = f"{aux_path}/context_property.csv"
 
         i_df.to_csv(input_file_path, index=False)
 
@@ -77,119 +81,109 @@ class Wikifier(object):
                                             get-fuzzy-augmented-matches -c label_clean \
                                             --auxiliary-fields {self.auxiliary_fields} \
                                             --auxiliary-folder {pipeline_temp_dir} \
-                                            / --url {self.es_url} --index {self.augmented_dwd_index} \
-                                            get-exact-matches \
-                                            -c label_clean \
+                                            / get-ngram-matches -c label_clean  \
+                                            --auxiliary-fields {self.auxiliary_fields} \
+                                            --auxiliary-folder {pipeline_temp_dir} \
+                                            / get-trigram-matches -c label_clean \
+                                            --auxiliary-fields {self.auxiliary_fields} \
+                                            --auxiliary-folder {pipeline_temp_dir} \
+                                            / get-exact-matches -c label_clean \
                                             --auxiliary-fields {self.auxiliary_fields} \
                                             --auxiliary-folder {pipeline_temp_dir} > {candidate_file_path}"
         cc_output = subprocess.getoutput(candidate_generation_command)
         if debug:
             print(cc_output)
 
-        column_rename_dict = {
-            'graph_embedding_complex': 'embedding',
-            'class_count': 'class_count',
-            'property_count': 'property_count',
-            'context': 'context'
-        }
         for field in self.auxiliary_fields.split(','):
             aux_list = []
-            for f in glob(f'{pipeline_temp_dir}/*{field}.tsv'):
-                aux_list.append(pd.read_csv(f, sep='\t'))
-            aux_df = pd.concat(aux_list).drop_duplicates(subset=['qnode']).rename(
-                columns={field: column_rename_dict[field]})
-            aux_df.to_csv(f'{pipeline_temp_dir}/{field}.tsv', sep='\t', index=False)
+            if field == 'context':
+                file_list = glob(f'{pipeline_temp_dir}/*{field}.jl')
+                o_f = open(context_file, 'w')
+
+                for i_f_P in file_list:
+                    i_f = open(i_f_P)
+                    for line in i_f:
+                        o_f.write(line)
+                    i_f.close()
+                o_f.close()
+
+            else:
+                for f in glob(f'{pipeline_temp_dir}/*{field}.tsv'):
+                    aux_list.append(pd.read_csv(f, sep='\t', dtype=object))
+                aux_df = pd.concat(aux_list).drop_duplicates(subset=['qnode'])
+                if field == 'class_count':
+                    aux_df.to_csv(class_count_file, sep='\t', index=False)
+                elif field == 'property_count':
+                    aux_df.to_csv(property_count_file, sep='\t', index=False)
+                else:
+                    aux_df.to_csv(graph_embedding_complex_file, sep='\t', index=False)
 
         # feature computation
+        pgt_features_str = ",".join(self.pseudo_gt_features)
         features_str = ",".join(self.features)
-        feature_computation_command = f"tl align-page-rank {candidate_file_path} \
+        columns_to_color = f"{features_str},siamese_prediction"
+
+        feature_computation_command = f"tl deduplicate-candidates -c kg_id {candidate_file_path} \
+                                        / string-similarity -i --method symmetric_monge_elkan:tokenizer=word -o \
+                                        monge_elkan --threshold 0.5 \
                                         / string-similarity -i --method symmetric_monge_elkan:tokenizer=word \
-                                        -o monge_elkan \
-                                        / string-similarity -i --method symmetric_monge_elkan:tokenizer=word \
-                                        -c label_clean kg_aliases -o monge_elkan_aliases \
-                                        / string-similarity -i --method jaro_winkler -o jaro_winkler \
-                                        / string-similarity -i --method levenshtein -o levenshtein \
-                                        / string-similarity -i --method jaccard:tokenizer=word -c kg_descriptions \
-                                        context -o des_cont_jaccard \
-                                        / normalize-scores -c des_cont_jaccard / smallest-qnode-number \
-                                        / mosaic-features -c kg_labels --num-char --num-tokens \
+                                        -c label_clean kg_aliases -o monge_elkan_aliases --threshold 0.5 \
+                                        / string-similarity -i --method jaro_winkler -o jaro_winkler --threshold 0.5 \
+                                        / string-similarity -i --method levenshtein -o levenshtein --threshold 0.5 \
                                         / create-singleton-feature -o singleton \
-                                        / vote-by-classifier  \
-                                        --prob-threshold 0.995 \
-                                        --model {self.classifier_model_path} \
-                                        --features {','.join(self.classifier_features)} \
-                                        / score-using-embedding \
-                                        --column-vector-strategy centroid-of-lof \
-                                        --lof-strategy ems-mv \
-                                        -o lof-graph-embedding-score \
-                                        --embedding-file {graph_embedding_complex_file} \
-                                        --embedding-url {self.es_url}/{self.augmented_dwd_index}/ \
-                                        / generate-reciprocal-rank  \
-                                        -c lof-graph-embedding-score \
-                                        -o lof-reciprocal-rank \
-                                        / compute-tf-idf \
+                                        / pick-hc-candidates -o ignore_candidate \
+                                        --string-similarity-label-columns monge_elkan,jaro_winkler,levenshtein \
+                                        --string-similarity-alias-columns monge_elkan_aliases \
+                                        / context-match --debug --context-file {context_file} \
+                                        --ignore-column-name ignore_candidate -o context_score \
+                                        --similarity-string-threshold 0.85 --similarity-quantity-threshold 0.9 \
+                                        --save-relevant-properties --context-properties-path {context_property_file} \
+                                        / kth-percentile -c context_score -o kth_percenter \
+                                        --ignore-column ignore_candidate --k-percentile 0.75  --minimum-cells 10 \
+                                        / pgt-semantic-tf-idf \
+                                        -o smc_class_score \
+                                        --pagerank-column pagerank \
+                                        --retrieval-score-column retrieval_score \
                                         --feature-file {class_count_file} \
                                         --feature-name class_count \
-                                        --singleton-column is_lof \
-                                        -o lof_class_count_tf_idf_score \
+                                        --high-confidence-column kth_percenter \
+                                        / pgt-semantic-tf-idf \
+                                        -o smc_property_score \
+                                        --pagerank-column pagerank \
+                                        --retrieval-score-column retrieval_score \
+                                        --feature-file {property_count_file} \
+                                        --feature-name property_count \
+                                        --high-confidence-column kth_percenter \
+                                        / predict-using-model -o pseudo_gt_prediction \
+                                        --features {pgt_features_str} \
+                                        --ranking-model {self.pseudo_gt_model} \
+                                        --ignore-column ignore_candidate \
+                                        --normalization-factor {self.pseudo_gt_min_max_scaler_path} \
+                                        / create-pseudo-gt -o pseudo_gt \
+                                        --column-thresholds pseudo_gt_prediction:mean \
+                                        --filter smc_class_score:0 \
+                                        / context-match --debug --context-file {context_file} -o context_score_3 \
+                                        --similarity-string-threshold 0.85 --similarity-quantity-threshold 0.9 \
+                                        --use-relevant-properties --context-properties-path {context_property_file} \
+                                        / mosaic-features -c kg_labels --num-char --num-tokens \
+                                        / score-using-embedding \
+                                        --column-vector-strategy centroid-of-lof \
+                                        --lof-strategy pseudo-gt \
+                                        -o pgt_centroid_score \
+                                        --embedding-file {graph_embedding_complex_file} \
+                                        / compute-tf-idf  \
+                                        --feature-file {class_count_file} \
+                                        --feature-name class_count \
+                                        --singleton-column pseudo_gt \
+                                        -o pgt_class_count_tf_idf_score \
                                         / compute-tf-idf \
                                         --feature-file {property_count_file} \
                                         --feature-name property_count \
-                                        --singleton-column is_lof \
-                                        -o lof_property_count_tf_idf_score \
-                                        / context-match \
-                                        --context-file {context_file}  \
-                                        -o context_score \
-                                        --debug \
+                                        --singleton-column pseudo_gt \
+                                        -o pgt_property_count_tf_idf_score \
                                         / predict-using-model -o siamese_prediction \
-                                        --ranking-model {self.model_path} \
                                         --features {features_str} \
-                                        --normalization-factor {self.min_max_scaler_path} \
-                                        > {intermediate_file}" if not high_precision else \
-            f"tl align-page-rank {candidate_file_path} \
-                                        / string-similarity -i --method symmetric_monge_elkan:tokenizer=word \
-                                        -o monge_elkan \
-                                        / string-similarity -i --method symmetric_monge_elkan:tokenizer=word \
-                                        -c label_clean kg_aliases -o monge_elkan_aliases \
-                                        / string-similarity -i --method jaro_winkler -o jaro_winkler \
-                                        / string-similarity -i --method levenshtein -o levenshtein \
-                                        / string-similarity -i --method jaccard:tokenizer=word -c kg_descriptions \
-                                        context -o des_cont_jaccard \
-                                        / normalize-scores -c des_cont_jaccard / smallest-qnode-number \
-                                        / mosaic-features -c kg_labels --num-char --num-tokens \
-                                        / create-singleton-feature -o singleton \
-                                        / vote-by-classifier  \
-                                        --prob-threshold 0.995 \
-                                        --model {self.classifier_model_path} \
-                                        --features {','.join(self.classifier_features)} \
-                                        / score-using-embedding \
-                                        --column-vector-strategy centroid-of-lof \
-                                        --lof-strategy ems-mv \
-                                        -o lof-graph-embedding-score \
-                                        --embedding-file {graph_embedding_complex_file} \
-                                        --embedding-url {self.es_url}/{self.augmented_dwd_index}/ \
-                                        / generate-reciprocal-rank  \
-                                        -c lof-graph-embedding-score \
-                                        -o lof-reciprocal-rank \
-                                        / compute-tf-idf \
-                                        --feature-file {class_count_file} \
-                                        --feature-name class_count \
-                                        --singleton-column is_lof \
-                                        -o lof_class_count_tf_idf_score \
-                                        / compute-tf-idf \
-                                        --feature-file {property_count_file} \
-                                        --feature-name property_count \
-                                        --singleton-column is_lof \
-                                        -o lof_property_count_tf_idf_score \
-                                        / context-match \
-                                        --context-file {context_file}  \
-                                        --custom-context-file {self.custom_context_path} \
-                                        --string-separator ';' \
-                                        -o context_score \
-                                        --debug \
-                                        / predict-using-model -o siamese_prediction \
                                         --ranking-model {self.model_path} \
-                                        --features {features_str} \
                                         --normalization-factor {self.min_max_scaler_path} \
                                         > {intermediate_file}"
 
@@ -200,7 +194,7 @@ class Wikifier(object):
         if colorized_output:
             output_command = f"tl get-kg-links -c siamese_prediction -k {k}  \
                              --k-rows  {intermediate_file}\
-                             / add-color -c siamese_prediction -k {k} \
+                             / add-color -c {columns_to_color} -k {k} \
                              --output {output_file}"
         else:
             output_command = f"tl get-kg-links -c siamese_prediction -k {k} --k-rows {intermediate_file} \
