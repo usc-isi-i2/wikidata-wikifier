@@ -78,3 +78,35 @@ cd wikidata-wikifier
 
 5. The web service will be running at port `1703`
 
+## Installation of OpenRefine
+
+Instruction from https://docs.openrefine.org/manual/installing
+
+Java#
+
+Java must be installed and configured on your computer to run OpenRefine. The Mac version of OpenRefine includes Java; new in OpenRefine 3.4, there is also a Windows package with Java included.
+
+If you install and start OpenRefine on a Windows computer without Java, it will automatically open up a browser window to the Java downloads page, and you can simply follow the instructions there.
+
+We recommend you download and install Java before proceeding with the OpenRefine installation. Please note that OpenRefine works with Java 14 but not Java 16 or later versions, hopefully this will be fixed in the 3.5 final release (see issue #4106).
+
+
+Download OpenRefine from 
+https://openrefine.org/download.html
+
+Or Install Via homebrew
+```
+brew install openrefine
+```
+
+
+## Usage of Reconciliation service using table-linker
+
+After getting OpenRefine and wikidata-wikifier service running, go to http://127.0.0.1:3333/, select a file to reconcile, choose a column, then select reconcile -> start reconciling.
+
+For first time usage, click Add Standard Service and enter the wikidata-service url (an example would be http://localhost:1703/rec).
+
+When selecting other columns as contexts, you have to give them a name (can't lave them blank)
+
+
+
