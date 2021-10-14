@@ -15,7 +15,7 @@ wikifier = Wikifier()
 config = json.load(open('wikifier/config.json'))
 
 
-@app.route('/rec', methods=['POST', 'GET'])
+@app.route('/reconcile', methods=['POST', 'GET'])
 def rec():
     # deal with callback requests for general info
 
