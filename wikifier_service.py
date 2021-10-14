@@ -26,6 +26,8 @@ def wikify():
     colorized_output = request.args.get('colorized', 'false').lower() == 'true'
     tsv = request.args.get('tsv', 'false').lower() == 'true'
 
+    isa = request.args.get('isa', None)
+
     sep = '\t' if tsv else ","
     df = pd.read_csv(request.files['file'], dtype=object, sep=sep)
     df.fillna('', inplace=True)
@@ -36,7 +38,8 @@ def wikify():
     pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
 
     output_file = wikifier.wikify(df, columns, output_path=_path, debug=True, k=k,
-                                  colorized_output=colorized_output)
+                                  colorized_output=colorized_output,
+                                  isa=isa)
     return send_from_directory(_path, output_file)
 
 
