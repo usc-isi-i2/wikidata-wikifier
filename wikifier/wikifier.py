@@ -51,9 +51,10 @@ class Wikifier(object):
                output_path: str,
                debug: bool = False,
                k: int = 1,
-               colorized_output: bool = False) -> str:
+               colorized_output: bool = False,
+               isa: str = None) -> str:
         temp_dir = tempfile.mkdtemp()
-        
+
         aux_path = f"{temp_dir}/aux_files"
         Path(aux_path).mkdir(parents=True, exist_ok=True)
 
@@ -89,7 +90,28 @@ class Wikifier(object):
                                             --auxiliary-folder {pipeline_temp_dir} \
                                             / get-exact-matches -c label_clean \
                                             --auxiliary-fields {self.auxiliary_fields} \
-                                            --auxiliary-folder {pipeline_temp_dir} > {candidate_file_path}"
+                                            --auxiliary-folder {pipeline_temp_dir} > {candidate_file_path}" \
+            if isa is None else \
+            f"tl canonicalize -c '{columns}' --add-context  {input_file_path} \
+                                                   / clean -c label -o label_clean \
+                                                   / --url {self.es_url} --index {self.augmented_dwd_index} \
+                                                   get-fuzzy-augmented-matches -c label_clean \
+                                                   --auxiliary-fields {self.auxiliary_fields} \
+                                                   --auxiliary-folder {pipeline_temp_dir} \
+                                                   --isa {isa} \
+                                                   / get-ngram-matches -c label_clean  \
+                                                   --auxiliary-fields {self.auxiliary_fields} \
+                                                   --auxiliary-folder {pipeline_temp_dir} \
+                                                   --isa {isa} \
+                                                   / get-trigram-matches -c label_clean \
+                                                   --auxiliary-fields {self.auxiliary_fields} \
+                                                   --auxiliary-folder {pipeline_temp_dir} \
+                                                   --isa {isa} \
+                                                   / get-exact-matches -c label_clean \
+                                                   --auxiliary-fields {self.auxiliary_fields} \
+                                                   --auxiliary-folder {pipeline_temp_dir} \
+                                                   --isa {isa} > {candidate_file_path}"
+
         cc_output = subprocess.getoutput(candidate_generation_command)
         if debug:
             print(cc_output)
