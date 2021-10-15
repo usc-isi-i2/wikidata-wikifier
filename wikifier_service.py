@@ -6,21 +6,20 @@ from flask import Flask
 from flask import request
 from flask import send_from_directory
 from wikifier.wikifier import Wikifier
-import requests
-import time
 
 app = Flask(__name__)
 
 wikifier = Wikifier()
 config = json.load(open('wikifier/config.json'))
 
-
-@app.route('/rec', methods=['POST', 'GET'])
-def rec():
+@app.route('/reconcile', methods=['POST', 'GET'])
+def reconcile():
     # deal with callback requests for general info
 
     query = request.form.get('queries')
+    print(query)
 
+    #time.sleep(1800)
     callback = request.args.get('callback', False)
 
     if query is None:
@@ -48,6 +47,11 @@ def rec():
 
         df = pd.DataFrame.from_dict(query, orient='index')
 
+        if 'type' in df.columns:
+            type = df['type'][0]
+        else:
+            type = None
+
         label = []
         for key in query.keys():
             label.append(key)
@@ -73,8 +77,10 @@ def rec():
         _path = 'user_files/{}_{}'.format(columns, _uuid_hex)
         pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
 
+        print(type)
+
         wikifier.wikify(df, columns, output_path=_path, debug=True, k=k,
-                        colorized_output=True)
+                        colorized_output=True, isa = type)
 
         df = pd.read_excel(_path + '/colorized.xlsx')
 
@@ -82,10 +88,11 @@ def rec():
         for ele in label:
             output[ele] = {'result': []}
         for i in range(0, len(df)):
+            print(df['top5_class_count'][i])
             output[label[df['row'][i]]]['result'].append({
                 "id": df['kg_id'][i],
                 "name": df['kg_labels'][i],
-                "type": [{"id": df['top5_class_count'][i].split(':')[0],
+                "type": [{"id": str(df['top5_class_count'][i]).split(':')[0],
                           "name":"Qnode"}],
                 "score": df['siamese_prediction'][i],
                 "match": (float(df['siamese_prediction'][i]) > 0.95 and
@@ -95,8 +102,8 @@ def rec():
         if callback:
             return str(callback) + '(' + str(output) + ')'
         else:
+            print(output)
             return json.dumps(output)
-
 
 @app.route('/')
 def wikidata_wikifier():
@@ -111,6 +118,8 @@ def wikify():
     colorized_output = request.args.get('colorized', 'false').lower() == 'true'
     tsv = request.args.get('tsv', 'false').lower() == 'true'
 
+    isa = request.args.get('isa', None)
+
     sep = '\t' if tsv else ","
     df = pd.read_csv(request.files['file'], dtype=object, sep=sep)
     df.fillna('', inplace=True)
@@ -120,9 +129,9 @@ def wikify():
     _path = 'user_files/{}_{}'.format(columns, _uuid_hex)
     pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
 
-    output_file = wikifier.wikify(df, columns, output_path=_path,
-                                  debug=True, k=k,
-                                  colorized_output=colorized_output)
+    output_file = wikifier.wikify(df, columns, output_path=_path, debug=True, k=k,
+                                  colorized_output=colorized_output,
+                                  isa=isa)
     return send_from_directory(_path, output_file)
 
 
