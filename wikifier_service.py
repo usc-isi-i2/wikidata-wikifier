@@ -18,7 +18,6 @@ def reconcile():
     # deal with callback requests for general info
 
     query = request.form.get('queries')
-    print(query)
 
     callback = request.args.get('callback', False)
 
@@ -91,7 +90,8 @@ def reconcile():
                 "id": df['kg_id'][i],
                 "name": df['kg_labels'][i],
                 "type": [{"id": str(df['top5_class_count'][i]).split(':')[0],
-                          "name":"Qnode"}],
+                          "name": str(df['top5_class_count'][i]).split(':')[0]
+                          }],
                 "score": df['siamese_prediction'][i],
                 "match": (float(df['siamese_prediction'][i]) > 0.95 and
                           int(df['rank'][i]) == 1)
