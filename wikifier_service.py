@@ -12,6 +12,7 @@ app = Flask(__name__)
 wikifier = Wikifier()
 config = json.load(open('wikifier/config.json'))
 
+
 @app.route('/reconcile', methods=['POST', 'GET'])
 def reconcile():
     # deal with callback requests for general info
@@ -19,7 +20,6 @@ def reconcile():
     query = request.form.get('queries')
     print(query)
 
-    #time.sleep(1800)
     callback = request.args.get('callback', False)
 
     if query is None:
@@ -77,10 +77,8 @@ def reconcile():
         _path = 'user_files/{}_{}'.format(columns, _uuid_hex)
         pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
 
-        print(type)
-
         wikifier.wikify(df, columns, output_path=_path, debug=True, k=k,
-                        colorized_output=True, isa = type)
+                        colorized_output=True, isa=type)
 
         df = pd.read_excel(_path + '/colorized.xlsx')
 
@@ -104,6 +102,7 @@ def reconcile():
         else:
             print(output)
             return json.dumps(output)
+
 
 @app.route('/')
 def wikidata_wikifier():
@@ -129,9 +128,9 @@ def wikify():
     _path = 'user_files/{}_{}'.format(columns, _uuid_hex)
     pathlib.Path(_path).mkdir(parents=True, exist_ok=True)
 
-    output_file = wikifier.wikify(df, columns, output_path=_path, debug=True, k=k,
-                                  colorized_output=colorized_output,
-                                  isa=isa)
+    output_file = wikifier.wikify(df, columns, output_path=_path,
+                                  debug=True, k=k,
+                                  colorized_output=colorized_output, isa=isa)
     return send_from_directory(_path, output_file)
 
 
