@@ -104,7 +104,7 @@ brew install openrefine
 
 After getting OpenRefine and wikidata-wikifier service running, go to http://127.0.0.1:3333/, select a file to reconcile, choose a column, then select reconcile -> start reconciling.
 
-For first time usage, click Add Standard Service and enter the wikidata-service url (an example would be http://localhost:1703/rec).
+For first time usage, click Add Standard Service and enter the wikidata-service url (an example would be http://localhost:1703/reconcile).
 
 When selecting other columns as contexts, you have to give them a name (can't lave them blank)
 
