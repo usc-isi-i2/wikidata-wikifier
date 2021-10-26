@@ -6,6 +6,7 @@ from flask import Flask
 from flask import request
 from flask import send_from_directory
 from wikifier.wikifier import Wikifier
+from SPARQLWrapper import SPARQLWrapper, JSON
 
 app = Flask(__name__)
 
@@ -43,6 +44,7 @@ def reconcile():
     else:
         k = 3
         query = json.loads(query)
+        print(query)
 
         df = pd.DataFrame.from_dict(query, orient='index')
 
@@ -85,17 +87,48 @@ def reconcile():
         for ele in label:
             output[ele] = {'result': []}
         for i in range(0, len(df)):
-            print(df['top5_class_count'][i])
-            output[label[df['row'][i]]]['result'].append({
-                "id": df['kg_id'][i],
-                "name": df['kg_labels'][i],
-                "type": [{"id": str(df['top5_class_count'][i]).split(':')[0],
-                          "name": str(df['top5_class_count'][i]).split(':')[0]
-                          }],
-                "score": df['siamese_prediction'][i],
-                "match": (float(df['siamese_prediction'][i]) > 0.95 and
-                          int(df['rank'][i]) == 1)
-              })
+
+            sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
+
+            sparql.setQuery("""
+                SELECT *
+                WHERE
+                {
+                  wd:""" + str(df['top5_class_count'][i]).split(':')[0] + """ rdfs:label ?label .
+                  FILTER (langMatches( lang(?label), "EN" ) )
+                }
+                """)
+            sparql.setReturnFormat(JSON)
+            results = sparql.query().convert()
+
+            results_df = pd.io.json.\
+                json_normalize(results['results']['bindings'])
+
+            if len(results_df) == 0:
+                output[label[df['row'][i]]]['result'].append({
+                    "id": df['kg_id'][i],
+                    "name": df['kg_labels'][i],
+                    "type": [{"id": str(df['top5_class_count']
+                                        [i]).split(':')[0],
+                              "name": "None"
+                              }],
+                    "score": df['siamese_prediction'][i],
+                    "match": (float(df['siamese_prediction'][i]) > 0.95 and
+                              int(df['rank'][i]) == 1)
+                  })
+
+            else:
+                output[label[df['row'][i]]]['result'].append({
+                    "id": df['kg_id'][i],
+                    "name": df['kg_labels'][i],
+                    "type": [{"id": str(df['top5_class_count']
+                                        [i]).split(':')[0],
+                              "name": results_df['label.value'][0]
+                              }],
+                    "score": df['siamese_prediction'][i],
+                    "match": (float(df['siamese_prediction'][i]) > 0.95 and
+                              int(df['rank'][i]) == 1)
+                  })
 
         if callback:
             return str(callback) + '(' + str(output) + ')'
