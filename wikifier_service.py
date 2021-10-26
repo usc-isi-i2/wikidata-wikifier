@@ -44,7 +44,6 @@ def reconcile():
     else:
         k = 3
         query = json.loads(query)
-        print(query)
 
         df = pd.DataFrame.from_dict(query, orient='index')
 
@@ -133,7 +132,6 @@ def reconcile():
         if callback:
             return str(callback) + '(' + str(output) + ')'
         else:
-            print(output)
             return json.dumps(output)
 
 
