@@ -91,14 +91,13 @@ If you install and start OpenRefine on a Windows computer without Java, it will 
 We recommend you download and install Java before proceeding with the OpenRefine installation. Please note that OpenRefine works with Java 14 but not Java 16 or later versions, hopefully this will be fixed in the 3.5 final release (see issue #4106).
 
 
-Download OpenRefine from 
-https://openrefine.org/download.html
+Download OpenRefine from openrefine's github and edit the main/src/com/google/refine/model/recon/StandardReconConfig.java file.
 
-Or Install Via homebrew
-```
-brew install openrefine
-```
-
+Edit the batch size to 50 
+and scale the timeout 
+RequestConfig defaultRequestConfig = RequestConfig.custom()
+                .setConnectTimeout(5 * 30 * 1000)
+                .setSocketTimeout(5 * 60 * 1000)
 
 ## Usage of Reconciliation service using table-linker
 
