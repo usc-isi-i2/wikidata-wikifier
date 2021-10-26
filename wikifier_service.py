@@ -29,16 +29,16 @@ def reconcile():
                 "schemaSpace": "http://www.wikidata.org/prop/direct/",
                 "view": {
                     "url": "https://www.wikidata.org/wiki/{{id}}"
-                   }}) + ')'
+                }}) + ')'
             return content
         else:
             return {
-               "name": "Wikidata Reconciliation for OpenRefine (en)",
-               "identifierSpace": "http://www.wikidata.org/entity/",
-               "schemaSpace": "http://www.wikidata.org/prop/direct/",
-               "view": {
-                   "url": "https://www.wikidata.org/wiki/{{id}}"
-               }}
+                "name": "Wikidata Reconciliation for OpenRefine (en)",
+                "identifierSpace": "http://www.wikidata.org/entity/",
+                "schemaSpace": "http://www.wikidata.org/prop/direct/",
+                "view": {
+                    "url": "https://www.wikidata.org/wiki/{{id}}"
+                }}
     # deal with post/get queries
     else:
         k = 3
@@ -85,7 +85,6 @@ def reconcile():
         for ele in label:
             output[ele] = {'result': []}
         for i in range(0, len(df)):
-            print(df['top5_class_count'][i])
             output[label[df['row'][i]]]['result'].append({
                 "id": df['kg_id'][i],
                 "name": df['kg_labels'][i],
@@ -95,12 +94,11 @@ def reconcile():
                 "score": df['siamese_prediction'][i],
                 "match": (float(df['siamese_prediction'][i]) > 0.95 and
                           int(df['rank'][i]) == 1)
-              })
+            })
 
         if callback:
             return str(callback) + '(' + str(output) + ')'
         else:
-            print(output)
             return json.dumps(output)
 
 
