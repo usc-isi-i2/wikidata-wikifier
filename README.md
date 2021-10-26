@@ -91,7 +91,7 @@ If you install and start OpenRefine on a Windows computer without Java, it will 
 We recommend you download and install Java before proceeding with the OpenRefine installation. Please note that OpenRefine works with Java 14 but not Java 16 or later versions, hopefully this will be fixed in the 3.5 final release (see issue #4106).
 
 
-Download OpenRefine from openrefine's github and edit the main/src/com/google/refine/model/recon/StandardReconConfig.java file.
+Download OpenRefine from openrefine's github (3.4) and edit the main/src/com/google/refine/model/recon/StandardReconConfig.java file.
 
 Edit the batch size to 50 
 and scale the timeout 
