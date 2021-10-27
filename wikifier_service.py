@@ -14,6 +14,31 @@ wikifier = Wikifier()
 config = json.load(open('wikifier/config.json'))
 
 
+# input a list of qnodes, output a dict of nodes with labels
+def get_labels(ls):
+    source_fields = ["labels.en"]
+
+    qnodes_dict = {}
+    ids_query = {
+        "_source": source_fields,
+        "query": {
+            "ids": {
+                "values": ls
+            }
+        },
+        "size": len(ls)
+    }
+
+    es_search_url = f"{config['es_url']}/\
+{config['augmented_dwd_index']}/_search"
+    results = requests.post(es_search_url, json=ids_query).json()
+    d = {}
+    if len(results['hits']['hits']) != 0:
+        for ele in results['hits']['hits']:
+            d[ele['_id']] = ele['_source']['labels']['en'][0]
+    return d
+
+
 @app.route('/reconcile', methods=['POST', 'GET'])
 def reconcile():
     # deal with callback requests for general info
@@ -85,8 +110,29 @@ def reconcile():
         output = {}
         for ele in label:
             output[ele] = {'result': []}
+
+        ls = []
         for i in range(0, len(df)):
-            if isinstance(df['top5_class_count'][i], float):
+            if not isinstance(df['top5_class_count'][i], float):
+                ls.append(df['top5_class_count']
+                            [i].split(':')[0])
+        d = get_labels(ls)
+
+        for i in range(0, len(df)):
+            if str(df['top5_class_count'][i]).split(':')[0] in d.keys():
+                output[label[df['row'][i]]]['result'].append({
+                    "id": df['kg_id'][i],
+                    "name": df['kg_labels'][i],
+                    "type": [{"id": str(df['top5_class_count']
+                                        [i]).split(':')[0],
+                              "name": d[df['top5_class_count']
+                                        [i].split(':')[0]]
+                              }],
+                    "score": df['siamese_prediction'][i],
+                    "match": (float(df['siamese_prediction'][i]) > 0.95 and
+                              int(df['rank'][i]) == 1)
+                  })
+            else:
                 output[label[df['row'][i]]]['result'].append({
                     "id": df['kg_id'][i],
                     "name": df['kg_labels'][i],
@@ -94,45 +140,6 @@ def reconcile():
                     "match": (float(df['siamese_prediction'][i]) > 0.95 and
                               int(df['rank'][i]) == 1)
                   })
-            else:
-                source_fields = ["labels.en"]
-                qnodes_dict = {}
-                ids_query = {
-                    "_source": source_fields,
-                    "query": {
-                        "ids": {
-                            "values": df['top5_class_count']
-                                        [i].split(':')[0]
-                        }
-                    },
-                    "size": 1
-                }
-
-                es_search_url = f"{config['es_url']}/\
-{config['augmented_dwd_index']}/_search"
-                results = requests.post(es_search_url, json=ids_query).json()
-
-                if len(results['hits']['hits']) > 0:
-                    output[label[df['row'][i]]]['result'].append({
-                        "id": df['kg_id'][i],
-                        "name": df['kg_labels'][i],
-                        "type": [{"id": str(df['top5_class_count']
-                                            [i]).split(':')[0],
-                                  "name": results['hits']['hits'][0]
-                                  ['_source']['labels']['en'][0]
-                                  }],
-                        "score": df['siamese_prediction'][i],
-                        "match": (float(df['siamese_prediction'][i]) > 0.95 and
-                                  int(df['rank'][i]) == 1)
-                      })
-                else:
-                    output[label[df['row'][i]]]['result'].append({
-                        "id": df['kg_id'][i],
-                        "name": df['kg_labels'][i],
-                        "score": df['siamese_prediction'][i],
-                        "match": (float(df['siamese_prediction'][i]) > 0.95 and
-                                  int(df['rank'][i]) == 1)
-                      })
 
         if callback:
             return str(callback) + '(' + str(output) + ')'
