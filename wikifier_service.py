@@ -1,12 +1,12 @@
 import pathlib
 import json
 import pandas as pd
+import requests
 from uuid import uuid4
 from flask import Flask
 from flask import request
 from flask import send_from_directory
 from wikifier.wikifier import Wikifier
-from SPARQLWrapper import SPARQLWrapper, JSON
 
 app = Flask(__name__)
 
@@ -86,48 +86,53 @@ def reconcile():
         for ele in label:
             output[ele] = {'result': []}
         for i in range(0, len(df)):
-
-            sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
-
-            sparql.setQuery("""
-                SELECT *
-                WHERE
-                {
-                  wd:""" + str(df['top5_class_count'][i]).split(':')[0] + """ rdfs:label ?label .
-                  FILTER (langMatches( lang(?label), "EN" ) )
-                }
-                """)
-            sparql.setReturnFormat(JSON)
-            results = sparql.query().convert()
-
-            results_df = pd.io.json.\
-                json_normalize(results['results']['bindings'])
-
-            if len(results_df) == 0:
+            if isinstance(df['top5_class_count'][i], float):
                 output[label[df['row'][i]]]['result'].append({
                     "id": df['kg_id'][i],
                     "name": df['kg_labels'][i],
-                    "type": [{"id": str(df['top5_class_count']
-                                        [i]).split(':')[0],
-                              "name": "None"
-                              }],
                     "score": df['siamese_prediction'][i],
                     "match": (float(df['siamese_prediction'][i]) > 0.95 and
                               int(df['rank'][i]) == 1)
                   })
-
             else:
-                output[label[df['row'][i]]]['result'].append({
-                    "id": df['kg_id'][i],
-                    "name": df['kg_labels'][i],
-                    "type": [{"id": str(df['top5_class_count']
-                                        [i]).split(':')[0],
-                              "name": results_df['label.value'][0]
-                              }],
-                    "score": df['siamese_prediction'][i],
-                    "match": (float(df['siamese_prediction'][i]) > 0.95 and
-                              int(df['rank'][i]) == 1)
-                  })
+                source_fields = ["labels.en"]
+                qnodes_dict = {}
+                ids_query = {
+                    "_source": source_fields,
+                    "query": {
+                        "ids": {
+                            "values": df['top5_class_count']
+                                        [i].split(':')[0]
+                        }
+                    },
+                    "size": 1
+                }
+
+                es_search_url = f"{config['es_url']}/\
+{config['augmented_dwd_index']}/_search"
+                results = requests.post(es_search_url, json=ids_query).json()
+
+                if len(results['hits']['hits']) > 0:
+                    output[label[df['row'][i]]]['result'].append({
+                        "id": df['kg_id'][i],
+                        "name": df['kg_labels'][i],
+                        "type": [{"id": str(df['top5_class_count']
+                                            [i]).split(':')[0],
+                                  "name": results['hits']['hits'][0]
+                                  ['_source']['labels']['en'][0]
+                                  }],
+                        "score": df['siamese_prediction'][i],
+                        "match": (float(df['siamese_prediction'][i]) > 0.95 and
+                                  int(df['rank'][i]) == 1)
+                      })
+                else:
+                    output[label[df['row'][i]]]['result'].append({
+                        "id": df['kg_id'][i],
+                        "name": df['kg_labels'][i],
+                        "score": df['siamese_prediction'][i],
+                        "match": (float(df['siamese_prediction'][i]) > 0.95 and
+                                  int(df['rank'][i]) == 1)
+                      })
 
         if callback:
             return str(callback) + '(' + str(output) + ')'
