@@ -1,6 +1,7 @@
 import pathlib
 import json
 import pandas as pd
+import requests
 from uuid import uuid4
 from flask import Flask
 from flask import request
@@ -11,6 +12,31 @@ app = Flask(__name__)
 
 wikifier = Wikifier()
 config = json.load(open('wikifier/config.json'))
+
+
+# input a list of qnodes, output a dict of nodes with labels
+def get_labels(ls):
+    source_fields = ["labels.en"]
+
+    qnodes_dict = {}
+    ids_query = {
+        "_source": source_fields,
+        "query": {
+            "ids": {
+                "values": ls
+            }
+        },
+        "size": len(ls)
+    }
+
+    es_search_url = f"{config['es_url']}/\
+{config['augmented_dwd_index']}/_search"
+    results = requests.post(es_search_url, json=ids_query).json()
+    d = {}
+    if len(results['hits']['hits']) != 0:
+        for ele in results['hits']['hits']:
+            d[ele['_id']] = ele['_source']['labels']['en'][0]
+    return d
 
 
 @app.route('/reconcile', methods=['POST', 'GET'])
@@ -29,16 +55,16 @@ def reconcile():
                 "schemaSpace": "http://www.wikidata.org/prop/direct/",
                 "view": {
                     "url": "https://www.wikidata.org/wiki/{{id}}"
-                }}) + ')'
+                   }}) + ')'
             return content
         else:
             return {
-                "name": "Wikidata Reconciliation for OpenRefine (en)",
-                "identifierSpace": "http://www.wikidata.org/entity/",
-                "schemaSpace": "http://www.wikidata.org/prop/direct/",
-                "view": {
-                    "url": "https://www.wikidata.org/wiki/{{id}}"
-                }}
+               "name": "Wikidata Reconciliation for OpenRefine (en)",
+               "identifierSpace": "http://www.wikidata.org/entity/",
+               "schemaSpace": "http://www.wikidata.org/prop/direct/",
+               "view": {
+                   "url": "https://www.wikidata.org/wiki/{{id}}"
+               }}
     # deal with post/get queries
     else:
         k = 3
@@ -84,17 +110,36 @@ def reconcile():
         output = {}
         for ele in label:
             output[ele] = {'result': []}
+
+        ls = []
         for i in range(0, len(df)):
-            output[label[df['row'][i]]]['result'].append({
-                "id": df['kg_id'][i],
-                "name": df['kg_labels'][i],
-                "type": [{"id": str(df['top5_class_count'][i]).split(':')[0],
-                          "name": str(df['top5_class_count'][i]).split(':')[0]
-                          }],
-                "score": df['siamese_prediction'][i],
-                "match": (float(df['siamese_prediction'][i]) > 0.95 and
-                          int(df['rank'][i]) == 1)
-            })
+            if not isinstance(df['top5_class_count'][i], float):
+                ls.append(df['top5_class_count']
+                            [i].split(':')[0])
+        d = get_labels(ls)
+
+        for i in range(0, len(df)):
+            if str(df['top5_class_count'][i]).split(':')[0] in d.keys():
+                output[label[df['row'][i]]]['result'].append({
+                    "id": df['kg_id'][i],
+                    "name": df['kg_labels'][i],
+                    "type": [{"id": str(df['top5_class_count']
+                                        [i]).split(':')[0],
+                              "name": d[df['top5_class_count']
+                                        [i].split(':')[0]]
+                              }],
+                    "score": df['siamese_prediction'][i],
+                    "match": (float(df['siamese_prediction'][i]) > 0.95 and
+                              int(df['rank'][i]) == 1)
+                  })
+            else:
+                output[label[df['row'][i]]]['result'].append({
+                    "id": df['kg_id'][i],
+                    "name": df['kg_labels'][i],
+                    "score": df['siamese_prediction'][i],
+                    "match": (float(df['siamese_prediction'][i]) > 0.95 and
+                              int(df['rank'][i]) == 1)
+                  })
 
         if callback:
             return str(callback) + '(' + str(output) + ')'
