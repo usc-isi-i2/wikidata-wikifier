@@ -44,7 +44,7 @@ def reconcile():
     # deal with callback requests for general info
 
     query = request.form.get('queries')
-    print(query)
+
     callback = request.args.get('callback', False)
 
     if query is None:
@@ -147,7 +147,6 @@ def reconcile():
         if callback:
             return str(callback) + '(' + str(output) + ')'
         else:
-            print(output)
             return json.dumps(output)
 
 
