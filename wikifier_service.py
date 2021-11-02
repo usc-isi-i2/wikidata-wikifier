@@ -44,7 +44,7 @@ def reconcile():
     # deal with callback requests for general info
 
     query = request.form.get('queries')
-
+    print(query)
     callback = request.args.get('callback', False)
 
     if query is None:
@@ -55,7 +55,10 @@ def reconcile():
                 "schemaSpace": "http://www.wikidata.org/prop/direct/",
                 "view": {
                     "url": "https://www.wikidata.org/wiki/{{id}}"
-                   }}) + ')'
+                   },
+                "preview": {"url": "https://openrefine-wikidata.toolforge\
+.org/en/preview?id={{id}}",
+                            "width": 400, "height": 100}}) + ')'
             return content
         else:
             return {
@@ -144,6 +147,7 @@ def reconcile():
         if callback:
             return str(callback) + '(' + str(output) + ')'
         else:
+            print(output)
             return json.dumps(output)
 
 
