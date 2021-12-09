@@ -16,9 +16,28 @@ cd wikidata-wikifier
 python3 -m venv wiki_env
 source wiki_env/bin/activate
 pip install -r requirements.txt
+```
 
+### Update the config
+
+Update the following parameters in the `wikifier/config.json` file, before running the web service ,
+
+- `es_url`: URL of the elasticsearch server. For example: if the ES server is running locally on port 9200, then the url will be http://localhost:9200
+- `augmented_dwd_index`: Name of the elasticsearch index
+- `model_path`: Absolute path to the neural network model. Relative Path: "./wikifier/model/epoch_17_loss_0.014523069374263287_top1_0.9675043327556326.pth"
+- `min_max_scaler_path`: Absolute path to normalizer. Relative Path: "./wikifier/model/tl_pipeline_normalization_factor.pkl"
+- `pseudo_gt_model`: Absolute path to neural network for pseudo ground truth. Relative path: "./wikifier/model/epoch_1_loss_0.534353494644165_top1_0.7883487007544007.pth"
+- `pseudo_gt_min_max_scaler_path`: Absolute path to pseudo ground truth normalizer. Relative path: "./wikifier/model/normalization_factor.pkl"
+- `host`: Web service host, example: "0.0.0.0"
+- `port`: Web service port, example: "1703"
+
+
+### Run the web service
+
+```
 python wikifier_service.py
 ```
+
 You should see output similar to this
 ```
  * Serving Flask app "wikifier_service" (lazy loading)
@@ -26,10 +45,10 @@ You should see output similar to this
    WARNING: This is a development server. Do not use it in a production deployment.
    Use a production WSGI server instead.
  * Debug mode: off
- * Running on http://localhost:1703/ (Press CTRL+C to quit)
+ * Running on http://0.0.0.0:1703/ (Press CTRL+C to quit)
 ```
 
-The service is now running on `http://localhost:1703/wikify`
+The service is now running on `http://0.0.0.0:1703/wikify`
 
 Example python code to call the wikifier is available at `wikifier/call_wikifier_service.py`
 
